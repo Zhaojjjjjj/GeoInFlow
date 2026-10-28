@@ -21,7 +21,9 @@ concurrency:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The demo import streams ~1.38M records through the remote pooler in
+    # one transaction; on a slow runner that alone can take tens of minutes.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
