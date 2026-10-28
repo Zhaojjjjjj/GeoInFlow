@@ -1,0 +1,38 @@
+name: Vercel worker bursts
+
+# The Vercel edition has no resident worker processes. This workflow wakes
+# the two bounded worker endpoints every 5 minutes so pg-boss queues drain.
+# Required repository secrets:
+#   APP_URL     - public origin of the deployment, e.g. https://geo.example.com
+#   CRON_SECRET - must match the CRON_SECRET environment variable on Vercel
+# GitHub scheduled runs can be delayed; for stricter timing use Vercel Cron
+# on a Pro plan instead (see README-VERCEL.md).
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: vercel-cron
+  cancel-in-progress: false
+
+jobs:
+  log-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wake log worker
+        run: |
+          curl --fail --silent --show-error --max-time 330 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/log-worker"
+  analytics-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wake analytics worker
+        run: |
+          curl --fail --silent --show-error --max-time 330 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/analytics-worker"

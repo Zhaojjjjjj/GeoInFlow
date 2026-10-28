@@ -1,0 +1,61 @@
+'use client';
+import { useLiekanI18n } from '@/lib/liekan/i18n/client';
+
+import { usePathname, useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { ShareProvider } from '@/lib/liekan/upstream/share-client';
+import { featureRequest } from '@/lib/liekan/upstream/features-client';
+import { ShareFeatureView } from './WorkspacePages';
+import { QueryState } from './ui';
+import '@/styles/liekan/Features.module.css';
+import { LanguageSelector } from '../LanguageSelector';
+import localeStyles from '@/styles/liekan/LanguageSelector.module.css';
+import { useLiekanPageTitle } from '@/lib/liekan/i18n/client';
+function LegacyGate({
+  slug,
+  page,
+  children,
+}: {
+  slug: string;
+  page: string;
+  children: React.ReactNode;
+}) {
+  const i18n = useLiekanI18n();
+  const query = useQuery({
+    queryKey: ['liekan-legacy-share-gate', slug],
+    meta: { readPurpose: 'authorization' },
+    queryFn: ({ signal }) =>
+      featureRequest('GET', `/share/${encodeURIComponent(slug)}`, undefined, signal, undefined, ''),
+    retry: false,
+  });
+  if (query.isPending) return <QueryState query={query}>{null}</QueryState>;
+  if (query.error || query.data?.requiresPassword)
+    return (
+      <div data-liekan-features lang={i18n.locale}>
+        <ShareFeatureView slug={slug} initialPage={page} />
+      </div>
+    );
+  return <ShareProvider slug={slug}>{children}</ShareProvider>;
+}
+export function PublicShareEntry({ slug, children }: { slug: string; children: React.ReactNode }) {
+  const i18n = useLiekanI18n();
+  useLiekanPageTitle('分享页面');
+  const search = useSearchParams(),
+    path = usePathname();
+  const segments = path.split(`/share/${slug}/`)[1]?.split('/') || [],
+    page = (segments[0]?.includes('.') ? segments[1] : segments[0]) || 'overview';
+  return (
+    <div data-liekan-features lang={i18n.locale} style={{ minHeight: '100dvh' }}>
+      <div className={localeStyles.share} data-public-language>
+        <LanguageSelector toolbar />
+      </div>
+      {search.get('legacy') === '1' ? (
+        <LegacyGate slug={slug} page={page}>
+          {children}
+        </LegacyGate>
+      ) : (
+        <ShareFeatureView slug={slug} initialPage={page} />
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,81 @@
+.toolbar {
+  --lk-toolbar-control-height: 36px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: calc((60px - var(--lk-toolbar-control-height) - 1px) / 2) 32px;
+  min-height: 60px;
+  display: grid;
+  grid-template-columns: minmax(228px, 1fr) minmax(0, auto) auto;
+  align-items: start;
+  gap: 8px 16px;
+  background: #f5f7fa;
+  border-bottom: 1px solid #e9ecf1;
+  position: sticky;
+  top: 0;
+  z-index: 32;
+}
+.context {
+  min-width: 0;
+}
+.toolbar .context :global(.site-switch) {
+  max-width: 100%;
+  min-height: var(--lk-toolbar-control-height);
+  height: var(--lk-toolbar-control-height);
+}
+.actions {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.actions:empty {
+  display: none;
+}
+.actions > div {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.toolbar > :global([data-language-selector]) {
+  grid-column: 3;
+  grid-row: 1;
+}
+.toolbar .actions button {
+  min-height: var(--lk-toolbar-control-height);
+  height: var(--lk-toolbar-control-height);
+  white-space: nowrap;
+}
+@media (max-width: 1200px) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .context {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .toolbar > :global([data-language-selector]) {
+    grid-column: 2;
+  }
+}
+@media (max-width: 900px) {
+  .toolbar {
+    --lk-toolbar-control-height: 44px;
+    padding: 0 20px;
+  }
+}
+@media (max-width: 540px) {
+  .toolbar {
+    padding: 0 16px 8px;
+    column-gap: 12px;
+  }
+}

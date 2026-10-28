@@ -1,0 +1,36 @@
+name: Liekan compatibility checks
+on:
+  push:
+    branches: [main, 'feature/**', 'upstream-sync/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://user:pass@localhost:5432/dummy
+      SKIP_DB_CHECK: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Fetch pinned upstream comparison baseline
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { readFileSync } from 'node:fs';
+          const { repository, commit } = JSON.parse(readFileSync('config/liekan/upstream.json', 'utf8'));
+          execFileSync('git', ['fetch', '--no-tags', '--depth=1', repository, commit], { stdio: 'inherit' });
+          NODE
+      - run: node --test tests/liekan/docker-context.test.mjs
+      - run: pnpm liekan:verify --source-only

@@ -1,0 +1,14 @@
+{
+  "name": "GEOInflow",
+  "short_name": "GEOInflow",
+  "icons": [
+    {
+      "src": "/liekan/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}

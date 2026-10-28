@@ -1,0 +1,90 @@
+import { useLiekanI18n } from '@/lib/liekan/i18n/client';
+import { FilterChip, ReferenceChart, ReportRows, SortHeading } from '../ReportComponents';
+import type { ReportViewProps } from '../types';
+import { useReportActions } from '../ReportContext';
+import { crawlerFilterLabels } from '@/lib/liekan/contracts/query';
+
+export function AiBots({ report, rangeLabel }: ReportViewProps) {
+  const i18n = useLiekanI18n();
+  const actions = useReportActions();
+  return (
+    <main className="max-w-[1200px] mx-auto px-8 py-6 space-y-4">
+      <section className="card fade-in d1 overflow-hidden">
+        <div className="px-6 py-4 border-b border-line flex crawler-page-controls items-center justify-between gap-3">
+          <h2 className="text-[14px] font-bold tracking-tight">
+            {i18n.fragment('AI 蜘蛛台账（', false, true)}
+            {i18n.system(rangeLabel)}
+            {i18n.fragment(' 抓取量排序）', true, false)}
+          </h2>
+          <div className="flex crawler-page-controls items-center gap-2">
+            {crawlerFilterLabels.map(label => (
+              <FilterChip key={label} label={label} />
+            ))}
+          </div>
+        </div>
+        <table className="w-full text-[12.5px]">
+          <thead>
+            <tr className="text-left text-[11.5px] text-faint border-b border-line bg-[#FAFBFD]">
+              <SortHeading className="font-medium pl-6 pr-4 py-3" label="蜘蛛 / 厂商" />
+              <SortHeading className="font-medium px-4 py-3" label="类型" />
+              <SortHeading className="font-medium px-4 py-3 text-right" label="所选期间抓取" />
+              <SortHeading className="font-medium px-4 py-3 text-right" label="日均" />
+              <SortHeading className="font-medium px-4 py-3 text-right" label="覆盖页面" />
+              <SortHeading className="font-medium px-4 py-3" label="最爱内容" />
+              <SortHeading className="font-medium px-4 py-3" label="最后访问" />
+              <SortHeading className="font-medium px-4 py-3 text-right pr-6" label="趋势" />
+            </tr>
+          </thead>
+          <ReportRows
+            table="botBody"
+            report={report}
+            pageSize={20}
+            onCrawler={(name, botId) =>
+              actions.onAction(`蜘蛛详情:${JSON.stringify({ name, botId })}`)
+            }
+          />
+        </table>
+      </section>
+      <section className="grid grid-cols-2 gap-4">
+        <div className="card fade-in d2">
+          <div className="px-6 pt-5 pb-2">
+            <h2 className="text-[14px] font-bold tracking-tight">{i18n.text('蜘蛛类型构成')}</h2>
+            <p className="text-[11.5px] text-faint mt-0.5">
+              {i18n.text('AI 训练 / AI 搜索 / 用户触发 / 传统搜索 / 其他用途')}
+            </p>
+          </div>
+          <ReferenceChart id="b1" height={230} report={report} />
+        </div>
+        <div className="card fade-in d3 p-5">
+          <h2 className="text-[14px] font-bold tracking-tight">{i18n.text('识别口径')}</h2>
+          <div className="mt-3 space-y-2.5 text-[12px] text-sub leading-relaxed">
+            <p>
+              {i18n.text(
+                '依据导入日志的 User-Agent 特征分类。匹配结果标记为估算，来源身份验证信息仅在有证据时显示。',
+              )}
+            </p>
+            <p>{i18n.text('管理特征库可以调整本地识别规则。')}</p>
+            <p>
+              <button
+                type="button"
+                className="text-blue hover:underline focus-visible:ring-2"
+                onClick={() => actions.onAction('未知请求日志')}
+              >
+                {i18n.text('查看未知／未分类请求日志')}
+              </button>
+            </p>
+            <p>
+              <button
+                type="button"
+                className="text-blue hover:underline focus-visible:ring-2"
+                onClick={() => actions.onAction('蜘蛛归因与控制')}
+              >
+                {i18n.text('查看归因、风险与访问策略')}
+              </button>
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}

@@ -1,0 +1,245 @@
+import { executeNativeAnalysis } from '../lib/liekan/upstream/analysis-native-execution';
+import { ENTITY_TYPE } from '../lib/constants';
+import {
+  type AnalyticsRefreshJob,
+  forgetAnalyticsHot,
+  hotJobEligible,
+  readAnalyticsHot,
+  renewAnalyticsHotVersion,
+  scheduleNextAnalyticsHot,
+} from '../lib/liekan/upstream/analytics-hot';
+import {
+  analyticsHotCatalogVersion,
+  analyticsRefreshJobSchema,
+  parseAnalyticsHotParameters,
+} from '../lib/liekan/upstream/analytics-hot-parameters';
+import { readAnalyticsVersions } from '../lib/liekan/upstream/analytics-revision';
+import {
+  analyticsWorkerContext,
+  currentCacheContext,
+  noteCacheResult,
+  runCacheAuthorization,
+} from '../lib/liekan/upstream/cache-context';
+import { featureAnalytics, featureJourney } from '../lib/liekan/upstream/feature-analytics';
+import { currentShareScope, loadShareEntity } from '../lib/liekan/upstream/live-share';
+import { readPageReport } from '../lib/liekan/upstream/page-report';
+import { analyticsInfrastructureKey, websiteCacheTag } from '../lib/liekan/upstream/query-cache';
+import { withPublishedRegistry } from '../lib/liekan/upstream/crawler-registry-context';
+import prisma, { getRawQueryClient } from '../lib/prisma';
+import {
+  analyticsRemaining,
+  timedAnalyticsClient,
+} from '../lib/liekan/upstream/analytics-deadline';
+import { canViewWebsiteSection } from '../permissions/share';
+import { getShare } from '../queries/prisma/share';
+
+const primary = (): any => getRawQueryClient(prisma.client, { write: true });
+
+async function readStrongVersion(websiteId: string) {
+  const deadline = Math.min(currentCacheContext()?.deadline || Infinity, Date.now() + 5000);
+  return primary().$transaction(
+    async transaction => {
+      const tx = timedAnalyticsClient(transaction, deadline);
+      const schema = new URL(process.env.DATABASE_URL).searchParams.get('schema') || 'public';
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) throw new Error('Invalid analytics schema');
+      await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schema}"`);
+      return (await readAnalyticsVersions(tx, [websiteCacheTag(websiteId)])).strong;
+    },
+    {
+      timeout: analyticsRemaining(deadline),
+      maxWait: Math.min(5000, analyticsRemaining(deadline)),
+    },
+  );
+}
+
+export function readAnalyticsHotStrongVersion(websiteId: string, expectedStrongVersion?: string) {
+  return withPublishedRegistry(
+    () => readStrongVersion(websiteId),
+    expectedStrongVersion ? analyticsHotCatalogVersion(expectedStrongVersion) : undefined,
+  );
+}
+
+async function authorize(job: AnalyticsRefreshJob) {
+  return runCacheAuthorization(() => authorizeMetadata(job));
+}
+async function authorizeMetadata(job: AnalyticsRefreshJob) {
+  const db = primary();
+  const website =
+    (await loadShareEntity(ENTITY_TYPE.website, job.websiteId)) ||
+    (job.target.startsWith('native:') &&
+      ((await loadShareEntity(ENTITY_TYPE.link, job.websiteId)) ||
+        (await loadShareEntity(ENTITY_TYPE.pixel, job.websiteId))));
+  if (!website) return null;
+  let auth: any, scope: any;
+  if (job.shareId) {
+    if (
+      [
+        'feature:page-report',
+        'feature:analytics',
+        'feature:journeys',
+        'native:heatmap',
+        'native:heatmaps',
+      ].includes(job.target)
+    )
+      return null;
+    const share = await getShare(job.shareId);
+    const shareToken = await currentShareScope(share);
+    if (
+      !shareToken ||
+      (job.target === 'feature:shared-report' &&
+        (shareToken.shareType !== ENTITY_TYPE.website || shareToken.websiteId !== job.websiteId))
+    )
+      return null;
+    auth = { shareToken };
+    scope = {
+      shareId: shareToken.shareId,
+      parameters: shareToken.parameters,
+      websiteId: shareToken.websiteId,
+      websiteIds: shareToken.websiteIds,
+      linkIds: shareToken.linkIds,
+      pixelIds: shareToken.pixelIds,
+      boardLayoutHash: shareToken.boardLayoutHash,
+    };
+  } else {
+    const user = await db.user.findFirst({
+      where: { id: job.actorId, deletedAt: null },
+      select: { id: true, role: true },
+    });
+    if (!user) return null;
+    if (user.role !== 'admin' && website.userId !== user.id) {
+      if (
+        website.userId ||
+        !website.teamId ||
+        !(await db.teamUser.findFirst({
+          where: { teamId: website.teamId, userId: user.id, team: { deletedAt: null } },
+          select: { id: true },
+        }))
+      )
+        return null;
+    }
+    auth = { user: { ...user, isAdmin: user.role === 'admin' } };
+    scope = { private: true };
+  }
+  if (analyticsInfrastructureKey('scope-v1', scope) !== job.scopeHash) return null;
+  const target = job.target.split(':')[1];
+  const section: any = ['stats', 'pageviews'].includes(target)
+    ? ['overview', 'compare']
+    : target === 'metrics'
+      ? ['overview', 'events', 'sessions', 'compare', 'breakdown', 'utm', 'attribution']
+      : target.startsWith('performance')
+        ? 'performance'
+        : target.startsWith('revenue')
+          ? 'revenue'
+          : target.startsWith('goals')
+            ? 'goals'
+            : target.startsWith('funnels')
+              ? 'funnels'
+              : target.startsWith('events')
+                ? 'events'
+                : target === 'utm/metrics'
+                  ? 'utm'
+                  : ['retention', 'journeys', 'breakdown', 'attribution'].includes(target)
+                    ? target
+                    : 'overview';
+  // Private ownership and membership have been checked with primary queries above.
+  if (job.shareId && !(await canViewWebsiteSection(auth, job.websiteId, section))) return null;
+  return { website, auth, scope };
+}
+
+export async function processAnalyticsRefresh(input: unknown) {
+  const parsed = analyticsRefreshJobSchema.safeParse(input);
+  if (!parsed.success) return;
+  const job = parsed.data as AnalyticsRefreshJob;
+  return withPublishedRegistry(
+    () => processAnalyticsRefreshSnapshot(job),
+    analyticsHotCatalogVersion(job.expectedStrongVersion),
+  );
+}
+async function processAnalyticsRefreshSnapshot(job: AnalyticsRefreshJob) {
+  const now = Date.now();
+  const hot = await readAnalyticsHot(job, now);
+  if (
+    !hot ||
+    hot.job.scheduledAt !== job.scheduledAt ||
+    hot.job.expectedStrongVersion !== job.expectedStrongVersion
+  )
+    return;
+  if (now > job.scheduledAt + 30000) {
+    await renewAnalyticsHotVersion(job, job.expectedStrongVersion);
+    return;
+  }
+  if (now < job.scheduledAt) return;
+  return analyticsWorkerContext(
+    job.actorId || job.shareId,
+    undefined,
+    async () => {
+      const authorized = await authorize(job);
+      if (!authorized) {
+        await forgetAnalyticsHot(job);
+        return;
+      }
+      let parameters: any;
+      try {
+        parameters = parseAnalyticsHotParameters(job.target, job.parameters);
+      } catch {
+        await forgetAnalyticsHot(job);
+        return;
+      }
+      const strong = await readStrongVersion(job.websiteId);
+      if (strong !== job.expectedStrongVersion) {
+        await renewAnalyticsHotVersion(job, strong);
+        return;
+      }
+      if (!(await hotJobEligible(job))) {
+        // A different hot query may own the site's current round. Keep this demand recoverable.
+        await renewAnalyticsHotVersion(job, strong);
+        return;
+      }
+      const { website, auth, scope } = authorized;
+      const target = job.target.split(':')[1];
+      const results = await analyticsWorkerContext(
+        job.actorId || job.shareId,
+        scope,
+        async () => {
+          currentCacheContext().parameters = parameters;
+          if (job.target === 'feature:page-report')
+            noteCacheResult(await readPageReport(website, parameters, true));
+          else if (job.target === 'feature:analytics')
+            await featureAnalytics(job.websiteId, parameters);
+          else if (job.target === 'feature:journeys')
+            await featureJourney(job.websiteId, parameters);
+          else if (job.target === 'feature:shared-report')
+            await (await import('../lib/liekan/upstream/shared-report')).warmSharedReport(
+              website,
+              parameters,
+              auth,
+            );
+          else if (job.target.startsWith('native:'))
+            await executeNativeAnalysis(job.websiteId, target, parameters);
+          return [...currentCacheContext().results];
+        },
+        { deadline: job.scheduledAt + 30000, reauthorize: async () => !!(await authorize(job)) },
+      );
+      if (!(await authorize(job))) {
+        await forgetAnalyticsHot(job);
+        return;
+      }
+      const latest = await readStrongVersion(job.websiteId);
+      if (latest !== strong) {
+        await renewAnalyticsHotVersion(job, latest);
+        return;
+      }
+      if (!results.length) {
+        await forgetAnalyticsHot(job);
+        return;
+      }
+      await scheduleNextAnalyticsHot(
+        job,
+        Math.min(...results.map(result => result.expiresAt)),
+        Math.min(...results.map(result => result.generatedAt)),
+        latest,
+      );
+    },
+    { deadline: job.scheduledAt + 30000 },
+  );
+}

@@ -1,0 +1,90 @@
+import { requestApi } from '@/lib/liekan/http';
+import {
+  analysisAsyncRequested,
+  asyncAnalysisResponse,
+} from '@/lib/liekan/upstream/analysis-query-api';
+import { withQueryCacheHeaders } from '@/lib/liekan/upstream/cache-context';
+import { z } from 'zod';
+import { EVENT_COLUMNS, EVENT_TYPE, SESSION_COLUMNS } from '@/lib/constants';
+import { getQueryFilters, parseRequest } from '@/lib/request';
+import { badRequest, json, unauthorized } from '@/lib/response';
+import { filterParams, searchParams, withDateRange } from '@/lib/schema';
+import { canViewWebsiteSection } from '@/permissions';
+import {
+  getChannelMetrics,
+  getEventMetrics,
+  getPageviewMetrics,
+  getSessionMetrics,
+} from '@/queries/sql';
+
+async function getResponse(
+  request: Request,
+  { params }: { params: Promise<{ websiteId: string }> },
+) {
+  const schema = withDateRange({
+    type: z.string(),
+    limit: z.coerce.number().optional(),
+    offset: z.coerce.number().optional(),
+    ...searchParams,
+    ...filterParams,
+  });
+
+  const { auth, query, error } = await parseRequest(request, schema);
+
+  if (error) {
+    return error();
+  }
+
+  const { websiteId } = await params;
+
+  if (
+    !(await canViewWebsiteSection(auth, websiteId, [
+      'overview',
+      'events',
+      'sessions',
+      'compare',
+      'breakdown',
+      'utm',
+      'attribution',
+    ]))
+  ) {
+    return unauthorized();
+  }
+
+  const { type, limit, offset, search } = query;
+  const filters = await getQueryFilters(query, websiteId);
+
+  if (search) {
+    filters[type] = `c.${search}`;
+  }
+
+  if (SESSION_COLUMNS.includes(type)) {
+    const data = await getSessionMetrics(websiteId, { type, limit, offset }, filters);
+
+    return json(data);
+  }
+
+  if (type === 'channel') {
+    return json(await getChannelMetrics(websiteId, filters));
+  }
+
+  if (EVENT_COLUMNS.includes(type)) {
+    if (type === 'event') {
+      filters.eventType = EVENT_TYPE.customEvent;
+      return json(await getEventMetrics(websiteId, { type, limit, offset }, filters));
+    } else {
+      return json(await getPageviewMetrics(websiteId, { type, limit, offset }, filters));
+    }
+  }
+
+  return badRequest();
+}
+
+export async function GET(...args: Parameters<typeof getResponse>) {
+  if (analysisAsyncRequested(args[0], 'native:metrics'))
+    return requestApi(args[0], async () =>
+      asyncAnalysisResponse(args[0], (await args[1].params).websiteId, 'native:metrics'),
+    );
+
+  return withQueryCacheHeaders(() => getResponse(...args), args[0]);
+}

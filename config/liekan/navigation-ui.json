@@ -1,0 +1,1810 @@
+{
+  "baselineVersion": "liekan-navigation-v0.2.3",
+  "approval": "2026-10-04 用户确认紧凑站点选择、14 个常展开菜单、五组分析 Tab 与单行账户栏；全局保留数据总览，以数据管理和协作管理两个静态分类组织其余五个入口，链接与图片追踪合并到追踪管理；2026-10-06 用户确认帮助中心入口仅保留在全局管理侧栏；2026-10-06 用户确认页面事件与日志监测菜单名称；2026-10-07 用户确认网站项目页头增加 24h/7 天/30 天快捷时间按钮（自定义范围左侧）；2026-10-08 用户确认下线数据总览（工作台）页与导航入口，默认落地与历史 /dashboard 地址统一指向网站管理，网站管理列表新增今日/昨日/预计今日的访问次数、访客数、跳出率、AI访问次数并移除最近接收列，整行可点击进入网站统计；2026-10-08 用户确认网站管理页头指标卡沿用数据总览模式：全部网站访客、页面访问、AI 引荐访客、管理空间四卡，含前期与变化对比，按当前所属空间所选网站汇总；2026-10-09 用户确认后台统一手动读取，现有页头增加刷新与本次读取时间，实时和日志取消轮询，今日卡片注明读取日期；2026-10-10 用户确认新增来源关键词标签页及搜索引擎、识别依据、质量状态统计，沿用现有来源分析样式；2026-10-11 用户要求在来源关键词前新增搜索引擎，分别统计传统搜索与 AI 搜索引荐，包含占比饼图与明细；2026-10-14 用户确认审阅后的完整英文界面方案并要求实施，保留中文默认和现有布局，提供语言切换与浏览器偏好记忆；2026-10-18 用户要求明确访客与浏览器特征的区别，优化蜘蛛识别并显露流量质量入口；总览及相关图表使用访客 UV、浏览 PV，质量页增加分类汇总与精确路径筛选，保留原始图表、字段结构与样式。；2026-10-20 用户确认 GEOInflow 品牌、v1.2 展示版本、GEO STATS 副标题，以及猎看科技和北京日报社智源GEO联合发布署名，保留原图标、主体布局与兼容标识。；2026-10-21 用户确认统一爬虫与 AI 平台管理方案，新增全局 /crawlers/manage 唯一入口，四个标签页复用现有表格和抽屉；2026-10-21 用户要求菜单与页标题简化为爬虫管理，新增记录入口自动创建草稿并打开表单，沿用预览与确认发布流程。；2026-10-21 用户要求在 AI 爬虫与抓取页面增加 AI 工作台和个人 Agent 筛选，沿用现有按钮和表格样式。；2026-10-21 用户要求两页将其他已知改为其他爬虫并排在最后，筛选排除前面四种用途及两种产品形态。；2026-10-24 用户确认开源项目信息弹窗设计，左下角四宫格入口打开居中宽屏弹窗，联合开源名称链接到带 ?GEOInflow 参数的官方网站，贡献者先显示 GitHub 仓库待接入。",
+  "originalReferencePolicy": "Original HTML, SHA-256 fingerprints, chart pixels, table columns and body VI remain authoritative. Approved navigation/header/toolbars have bounded independent checks.",
+  "incrementalVisualPages": [
+    "crawlers-manage",
+    "history-repair",
+    "analytics-acceleration"
+  ],
+  "groups": {
+    "global": [
+      {
+        "id": "ai-chat",
+        "label": "快速发起",
+        "page": "ai-chat",
+        "children": []
+      },
+      {
+        "id": "data",
+        "label": "数据管理",
+        "page": "websites",
+        "children": [
+          {
+            "page": "websites",
+            "label": "网站管理"
+          },
+          {
+            "page": "boards",
+            "label": "数据看板"
+          },
+          {
+            "page": "links",
+            "label": "追踪管理"
+          },
+          {
+            "page": "crawlers-manage",
+            "label": "爬虫管理"
+          }
+        ]
+      },
+      {
+        "id": "collaboration",
+        "label": "协作管理",
+        "page": "sharing",
+        "children": [
+          {
+            "page": "sharing",
+            "label": "分享管理"
+          },
+          {
+            "page": "teams",
+            "label": "团队管理"
+          }
+        ]
+      },
+      {
+        "id": "help",
+        "label": "帮助中心",
+        "page": "help",
+        "children": []
+      },
+      {
+        "id": "ai-config",
+        "label": "AI配置器",
+        "page": "ai-config",
+        "children": []
+      }
+    ],
+    "website": [
+      {
+        "id": "overview",
+        "page": "overview",
+        "label": "流量总览",
+        "children": []
+      },
+      {
+        "id": "ai",
+        "page": "geo-ai",
+        "label": "AI 抓取分析",
+        "children": [
+          {
+            "page": "geo-ai",
+            "label": "抓取总览"
+          },
+          {
+            "page": "geo-bots",
+            "label": "AI 爬虫"
+          },
+          {
+            "page": "geo-ai-pages",
+            "label": "抓取页面"
+          },
+          {
+            "page": "geo-preference",
+            "label": "内容偏好"
+          }
+        ]
+      },
+      {
+        "id": "visitors",
+        "page": "geo-human",
+        "label": "访客与来源",
+        "children": [
+          {
+            "page": "geo-human",
+            "label": "访客总览"
+          },
+          {
+            "page": "geo-geography",
+            "label": "地域分布"
+          },
+          {
+            "page": "geo-sources",
+            "label": "来源渠道"
+          }
+        ]
+      },
+      {
+        "id": "behavior",
+        "page": "geo-content",
+        "label": "内容与转化",
+        "children": [
+          {
+            "page": "geo-content",
+            "label": "页面事件"
+          },
+          {
+            "page": "sessions",
+            "label": "访问记录"
+          },
+          {
+            "page": "geo-conversions",
+            "label": "转化分析"
+          },
+          {
+            "page": "cohorts",
+            "label": "人群分析"
+          }
+        ]
+      },
+      {
+        "id": "monitor",
+        "page": "realtime",
+        "label": "实时监测",
+        "children": [
+          {
+            "page": "realtime",
+            "label": "实时访客"
+          },
+          {
+            "page": "geo-logs",
+            "label": "日志监测"
+          }
+        ]
+      }
+    ],
+    "admin": [
+      {
+        "id": "admin-users",
+        "label": "用户管理",
+        "page": "admin-users",
+        "children": []
+      },
+      {
+        "id": "admin-websites",
+        "label": "所有网站",
+        "page": "admin-websites",
+        "children": []
+      },
+      {
+        "id": "admin-teams",
+        "label": "所有团队",
+        "page": "admin-teams",
+        "children": []
+      },
+      {
+        "id": "admin-security",
+        "label": "系统安全",
+        "page": "admin-security",
+        "children": []
+      }
+    ]
+  },
+  "account": [
+    [
+      "account",
+      "账户资料"
+    ],
+    [
+      "security",
+      "账户安全"
+    ],
+    [
+      "api-keys",
+      "API 密钥"
+    ],
+    [
+      "preferences",
+      "偏好设置"
+    ]
+  ],
+  "pages": {
+    "websites": {
+      "scope": "global",
+      "section": "websites",
+      "active": "websites",
+      "title": "网站管理",
+      "tabs": [],
+      "activeTab": null
+    },
+    "onboarding": {
+      "scope": "global",
+      "section": "websites",
+      "active": "websites",
+      "title": "添加网站",
+      "tabs": [],
+      "activeTab": null
+    },
+    "website-settings": {
+      "scope": "website",
+      "section": "website-settings",
+      "active": "website-settings",
+      "title": "网站设置",
+      "tabs": [],
+      "activeTab": null
+    },
+    "tracking": {
+      "scope": "website",
+      "section": "website-settings",
+      "active": "website-settings",
+      "title": "跟踪代码",
+      "tabs": [],
+      "activeTab": null
+    },
+    "install-check": {
+      "scope": "website",
+      "section": "website-settings",
+      "active": "website-settings",
+      "title": "安装验证",
+      "tabs": [],
+      "activeTab": null
+    },
+    "recorder-settings": {
+      "scope": "website",
+      "section": "website-settings",
+      "active": "website-settings",
+      "title": "行为采集设置",
+      "tabs": [],
+      "activeTab": null
+    },
+    "account": {
+      "scope": "account",
+      "section": "account",
+      "active": "account",
+      "title": "账户资料",
+      "tabs": [],
+      "activeTab": null
+    },
+    "security": {
+      "scope": "account",
+      "section": "account",
+      "active": "security",
+      "title": "账户安全",
+      "tabs": [],
+      "activeTab": null
+    },
+    "api-keys": {
+      "scope": "account",
+      "section": "account",
+      "active": "api-keys",
+      "title": "API 密钥",
+      "tabs": [],
+      "activeTab": null
+    },
+    "preferences": {
+      "scope": "account",
+      "section": "account",
+      "active": "preferences",
+      "title": "偏好设置",
+      "tabs": [],
+      "activeTab": null
+    },
+    "two-factor": {
+      "scope": "auth",
+      "section": "account",
+      "active": "security",
+      "title": "设置双重验证",
+      "tabs": [],
+      "activeTab": null
+    },
+    "backup-codes": {
+      "scope": "auth",
+      "section": "account",
+      "active": "security",
+      "title": "保存恢复码",
+      "tabs": [],
+      "activeTab": null
+    },
+    "login": {
+      "scope": "auth",
+      "section": "account",
+      "active": "login",
+      "title": "登录",
+      "tabs": [],
+      "activeTab": null
+    },
+    "login-2fa": {
+      "scope": "auth",
+      "section": "account",
+      "active": "login-2fa",
+      "title": "登录验证",
+      "tabs": [],
+      "activeTab": null
+    },
+    "sso": {
+      "scope": "auth",
+      "section": "account",
+      "active": "sso",
+      "title": "单点登录",
+      "tabs": [],
+      "activeTab": null
+    },
+    "goals": {
+      "scope": "website",
+      "section": "conversion",
+      "active": "geo-conversions",
+      "title": "转化分析",
+      "tabs": [
+        {
+          "page": "geo-conversions",
+          "label": "转化概览"
+        },
+        {
+          "page": "goals",
+          "label": "目标"
+        },
+        {
+          "page": "funnels",
+          "label": "漏斗"
+        },
+        {
+          "page": "attribution",
+          "label": "转化归因"
+        },
+        {
+          "page": "revenue",
+          "label": "收入"
+        }
+      ],
+      "activeTab": "goals"
+    },
+    "funnels": {
+      "scope": "website",
+      "section": "conversion",
+      "active": "geo-conversions",
+      "title": "转化分析",
+      "tabs": [
+        {
+          "page": "geo-conversions",
+          "label": "转化概览"
+        },
+        {
+          "page": "goals",
+          "label": "目标"
+        },
+        {
+          "page": "funnels",
+          "label": "漏斗"
+        },
+        {
+          "page": "attribution",
+          "label": "转化归因"
+        },
+        {
+          "page": "revenue",
+          "label": "收入"
+        }
+      ],
+      "activeTab": "funnels"
+    },
+    "attribution": {
+      "scope": "website",
+      "section": "conversion",
+      "active": "geo-conversions",
+      "title": "转化分析",
+      "tabs": [
+        {
+          "page": "geo-conversions",
+          "label": "转化概览"
+        },
+        {
+          "page": "goals",
+          "label": "目标"
+        },
+        {
+          "page": "funnels",
+          "label": "漏斗"
+        },
+        {
+          "page": "attribution",
+          "label": "转化归因"
+        },
+        {
+          "page": "revenue",
+          "label": "收入"
+        }
+      ],
+      "activeTab": "attribution"
+    },
+    "revenue": {
+      "scope": "website",
+      "section": "conversion",
+      "active": "geo-conversions",
+      "title": "转化分析",
+      "tabs": [
+        {
+          "page": "geo-conversions",
+          "label": "转化概览"
+        },
+        {
+          "page": "goals",
+          "label": "目标"
+        },
+        {
+          "page": "funnels",
+          "label": "漏斗"
+        },
+        {
+          "page": "attribution",
+          "label": "转化归因"
+        },
+        {
+          "page": "revenue",
+          "label": "收入"
+        }
+      ],
+      "activeTab": "revenue"
+    },
+    "goal-editor": {
+      "scope": "website",
+      "section": "conversion",
+      "active": "geo-conversions",
+      "title": "创建目标",
+      "tabs": [
+        {
+          "page": "geo-conversions",
+          "label": "转化概览"
+        },
+        {
+          "page": "goals",
+          "label": "目标"
+        },
+        {
+          "page": "funnels",
+          "label": "漏斗"
+        },
+        {
+          "page": "attribution",
+          "label": "转化归因"
+        },
+        {
+          "page": "revenue",
+          "label": "收入"
+        }
+      ],
+      "activeTab": "goals"
+    },
+    "funnel-editor": {
+      "scope": "website",
+      "section": "conversion",
+      "active": "geo-conversions",
+      "title": "创建漏斗",
+      "tabs": [
+        {
+          "page": "geo-conversions",
+          "label": "转化概览"
+        },
+        {
+          "page": "goals",
+          "label": "目标"
+        },
+        {
+          "page": "funnels",
+          "label": "漏斗"
+        },
+        {
+          "page": "attribution",
+          "label": "转化归因"
+        },
+        {
+          "page": "revenue",
+          "label": "收入"
+        }
+      ],
+      "activeTab": "funnels"
+    },
+    "realtime": {
+      "scope": "website",
+      "section": "monitor",
+      "active": "realtime",
+      "title": "实时访客",
+      "tabs": [],
+      "activeTab": null
+    },
+    "events": {
+      "scope": "website",
+      "section": "behavior",
+      "active": "geo-content",
+      "title": "页面事件",
+      "tabs": [
+        {
+          "page": "geo-content",
+          "label": "页面与内容"
+        },
+        {
+          "page": "events",
+          "label": "事件分析"
+        },
+        {
+          "page": "heatmaps",
+          "label": "热力图"
+        },
+        {
+          "page": "performance",
+          "label": "页面性能"
+        }
+      ],
+      "activeTab": "events"
+    },
+    "sessions": {
+      "scope": "website",
+      "section": "behavior",
+      "active": "sessions",
+      "title": "访问记录",
+      "tabs": [
+        {
+          "page": "sessions",
+          "label": "访问记录"
+        },
+        {
+          "page": "replays",
+          "label": "会话回放"
+        }
+      ],
+      "activeTab": "sessions"
+    },
+    "performance": {
+      "scope": "website",
+      "section": "behavior",
+      "active": "geo-content",
+      "title": "页面事件",
+      "tabs": [
+        {
+          "page": "geo-content",
+          "label": "页面与内容"
+        },
+        {
+          "page": "events",
+          "label": "事件分析"
+        },
+        {
+          "page": "heatmaps",
+          "label": "热力图"
+        },
+        {
+          "page": "performance",
+          "label": "页面性能"
+        }
+      ],
+      "activeTab": "performance"
+    },
+    "heatmaps": {
+      "scope": "website",
+      "section": "behavior",
+      "active": "geo-content",
+      "title": "页面事件",
+      "tabs": [
+        {
+          "page": "geo-content",
+          "label": "页面与内容"
+        },
+        {
+          "page": "events",
+          "label": "事件分析"
+        },
+        {
+          "page": "heatmaps",
+          "label": "热力图"
+        },
+        {
+          "page": "performance",
+          "label": "页面性能"
+        }
+      ],
+      "activeTab": "heatmaps"
+    },
+    "replays": {
+      "scope": "website",
+      "section": "behavior",
+      "active": "sessions",
+      "title": "访问记录",
+      "tabs": [
+        {
+          "page": "sessions",
+          "label": "访问记录"
+        },
+        {
+          "page": "replays",
+          "label": "会话回放"
+        }
+      ],
+      "activeTab": "replays"
+    },
+    "event-detail": {
+      "scope": "website",
+      "section": "behavior",
+      "active": "geo-content",
+      "title": "事件属性",
+      "tabs": [
+        {
+          "page": "geo-content",
+          "label": "页面与内容"
+        },
+        {
+          "page": "events",
+          "label": "事件分析"
+        },
+        {
+          "page": "heatmaps",
+          "label": "热力图"
+        },
+        {
+          "page": "performance",
+          "label": "页面性能"
+        }
+      ],
+      "activeTab": "events"
+    },
+    "session-detail": {
+      "scope": "website",
+      "section": "behavior",
+      "active": "sessions",
+      "title": "访问详情",
+      "tabs": [
+        {
+          "page": "sessions",
+          "label": "访问记录"
+        },
+        {
+          "page": "replays",
+          "label": "会话回放"
+        }
+      ],
+      "activeTab": "sessions"
+    },
+    "replay-player": {
+      "scope": "website",
+      "section": "behavior",
+      "active": "sessions",
+      "title": "回放播放器",
+      "tabs": [
+        {
+          "page": "sessions",
+          "label": "访问记录"
+        },
+        {
+          "page": "replays",
+          "label": "会话回放"
+        }
+      ],
+      "activeTab": "replays"
+    },
+    "filters": {
+      "scope": "website",
+      "section": "overview",
+      "active": "overview",
+      "title": "高级筛选",
+      "tabs": [],
+      "activeTab": null
+    },
+    "annotations": {
+      "scope": "website",
+      "section": "overview",
+      "active": "overview",
+      "title": "图表注释",
+      "tabs": [],
+      "activeTab": null
+    },
+    "exports": {
+      "scope": "website",
+      "section": "overview",
+      "active": "overview",
+      "title": "数据导出",
+      "tabs": [],
+      "activeTab": null
+    },
+    "segments": {
+      "scope": "website",
+      "section": "explore",
+      "active": "cohorts",
+      "title": "已保存分群",
+      "tabs": [
+        {
+          "page": "cohorts",
+          "label": "行为人群"
+        },
+        {
+          "page": "retention",
+          "label": "留存分析"
+        },
+        {
+          "page": "journeys",
+          "label": "访问旅程"
+        },
+        {
+          "page": "breakdown",
+          "label": "维度拆分"
+        },
+        {
+          "page": "compare",
+          "label": "对比分析"
+        }
+      ],
+      "activeTab": "cohorts"
+    },
+    "cohorts": {
+      "scope": "website",
+      "section": "explore",
+      "active": "cohorts",
+      "title": "人群分析",
+      "tabs": [
+        {
+          "page": "cohorts",
+          "label": "行为人群"
+        },
+        {
+          "page": "retention",
+          "label": "留存分析"
+        },
+        {
+          "page": "journeys",
+          "label": "访问旅程"
+        },
+        {
+          "page": "breakdown",
+          "label": "维度拆分"
+        },
+        {
+          "page": "compare",
+          "label": "对比分析"
+        }
+      ],
+      "activeTab": "cohorts"
+    },
+    "retention": {
+      "scope": "website",
+      "section": "explore",
+      "active": "cohorts",
+      "title": "人群分析",
+      "tabs": [
+        {
+          "page": "cohorts",
+          "label": "行为人群"
+        },
+        {
+          "page": "retention",
+          "label": "留存分析"
+        },
+        {
+          "page": "journeys",
+          "label": "访问旅程"
+        },
+        {
+          "page": "breakdown",
+          "label": "维度拆分"
+        },
+        {
+          "page": "compare",
+          "label": "对比分析"
+        }
+      ],
+      "activeTab": "retention"
+    },
+    "journeys": {
+      "scope": "website",
+      "section": "explore",
+      "active": "cohorts",
+      "title": "人群分析",
+      "tabs": [
+        {
+          "page": "cohorts",
+          "label": "行为人群"
+        },
+        {
+          "page": "retention",
+          "label": "留存分析"
+        },
+        {
+          "page": "journeys",
+          "label": "访问旅程"
+        },
+        {
+          "page": "breakdown",
+          "label": "维度拆分"
+        },
+        {
+          "page": "compare",
+          "label": "对比分析"
+        }
+      ],
+      "activeTab": "journeys"
+    },
+    "breakdown": {
+      "scope": "website",
+      "section": "explore",
+      "active": "cohorts",
+      "title": "人群分析",
+      "tabs": [
+        {
+          "page": "cohorts",
+          "label": "行为人群"
+        },
+        {
+          "page": "retention",
+          "label": "留存分析"
+        },
+        {
+          "page": "journeys",
+          "label": "访问旅程"
+        },
+        {
+          "page": "breakdown",
+          "label": "维度拆分"
+        },
+        {
+          "page": "compare",
+          "label": "对比分析"
+        }
+      ],
+      "activeTab": "breakdown"
+    },
+    "compare": {
+      "scope": "website",
+      "section": "explore",
+      "active": "cohorts",
+      "title": "人群分析",
+      "tabs": [
+        {
+          "page": "cohorts",
+          "label": "行为人群"
+        },
+        {
+          "page": "retention",
+          "label": "留存分析"
+        },
+        {
+          "page": "journeys",
+          "label": "访问旅程"
+        },
+        {
+          "page": "breakdown",
+          "label": "维度拆分"
+        },
+        {
+          "page": "compare",
+          "label": "对比分析"
+        }
+      ],
+      "activeTab": "compare"
+    },
+    "segment-editor": {
+      "scope": "website",
+      "section": "explore",
+      "active": "cohorts",
+      "title": "创建分群",
+      "tabs": [
+        {
+          "page": "cohorts",
+          "label": "行为人群"
+        },
+        {
+          "page": "retention",
+          "label": "留存分析"
+        },
+        {
+          "page": "journeys",
+          "label": "访问旅程"
+        },
+        {
+          "page": "breakdown",
+          "label": "维度拆分"
+        },
+        {
+          "page": "compare",
+          "label": "对比分析"
+        }
+      ],
+      "activeTab": "cohorts"
+    },
+    "cohort-editor": {
+      "scope": "website",
+      "section": "explore",
+      "active": "cohorts",
+      "title": "创建行为人群",
+      "tabs": [
+        {
+          "page": "cohorts",
+          "label": "行为人群"
+        },
+        {
+          "page": "retention",
+          "label": "留存分析"
+        },
+        {
+          "page": "journeys",
+          "label": "访问旅程"
+        },
+        {
+          "page": "breakdown",
+          "label": "维度拆分"
+        },
+        {
+          "page": "compare",
+          "label": "对比分析"
+        }
+      ],
+      "activeTab": "cohorts"
+    },
+    "path-detail": {
+      "scope": "website",
+      "section": "explore",
+      "active": "cohorts",
+      "title": "路径详情",
+      "tabs": [
+        {
+          "page": "cohorts",
+          "label": "行为人群"
+        },
+        {
+          "page": "retention",
+          "label": "留存分析"
+        },
+        {
+          "page": "journeys",
+          "label": "访问旅程"
+        },
+        {
+          "page": "breakdown",
+          "label": "维度拆分"
+        },
+        {
+          "page": "compare",
+          "label": "对比分析"
+        }
+      ],
+      "activeTab": "journeys"
+    },
+    "utm": {
+      "scope": "website",
+      "section": "visitors",
+      "active": "geo-sources",
+      "title": "来源渠道",
+      "tabs": [
+        {
+          "page": "geo-sources",
+          "label": "来源渠道"
+        },
+        {
+          "page": "geo-search-engines",
+          "label": "搜索引擎"
+        },
+        {
+          "page": "geo-keywords",
+          "label": "来源关键词"
+        },
+        {
+          "page": "utm",
+          "label": "UTM 活动"
+        }
+      ],
+      "activeTab": "utm"
+    },
+    "teams": {
+      "scope": "global",
+      "section": "teams",
+      "active": "teams",
+      "title": "团队管理",
+      "tabs": [],
+      "activeTab": null
+    },
+    "team-detail": {
+      "scope": "global",
+      "section": "teams",
+      "active": "teams",
+      "title": "团队详情",
+      "tabs": [],
+      "activeTab": null
+    },
+    "team-join": {
+      "scope": "global",
+      "section": "teams",
+      "active": "teams",
+      "title": "加入团队",
+      "tabs": [],
+      "activeTab": null
+    },
+    "admin-users": {
+      "scope": "admin",
+      "section": "admin-users",
+      "active": "admin-users",
+      "title": "用户管理",
+      "tabs": [],
+      "activeTab": null
+    },
+    "admin-user": {
+      "scope": "admin",
+      "section": "admin-users",
+      "active": "admin-users",
+      "title": "用户详情",
+      "tabs": [],
+      "activeTab": null
+    },
+    "admin-websites": {
+      "scope": "admin",
+      "section": "admin-websites",
+      "active": "admin-websites",
+      "title": "所有网站",
+      "tabs": [],
+      "activeTab": null
+    },
+    "admin-teams": {
+      "scope": "admin",
+      "section": "admin-teams",
+      "active": "admin-teams",
+      "title": "所有团队",
+      "tabs": [],
+      "activeTab": null
+    },
+    "admin-security": {
+      "scope": "admin",
+      "section": "admin-security",
+      "active": "admin-security",
+      "title": "系统安全",
+      "tabs": [],
+      "activeTab": null
+    },
+    "boards": {
+      "scope": "global",
+      "section": "boards",
+      "active": "boards",
+      "title": "数据看板",
+      "tabs": [],
+      "activeTab": null
+    },
+    "sharing": {
+      "scope": "global",
+      "section": "sharing",
+      "active": "sharing",
+      "title": "分享管理",
+      "tabs": [],
+      "activeTab": null
+    },
+    "board-editor": {
+      "scope": "global",
+      "section": "boards",
+      "active": "boards",
+      "title": "看板信息",
+      "tabs": [],
+      "activeTab": null
+    },
+    "board-view": {
+      "scope": "global",
+      "section": "boards",
+      "active": "boards",
+      "title": "看板详情",
+      "tabs": [],
+      "activeTab": null
+    },
+    "board-design": {
+      "scope": "global",
+      "section": "boards",
+      "active": "boards",
+      "title": "编辑看板布局",
+      "tabs": [],
+      "activeTab": null
+    },
+    "share-preview": {
+      "scope": "public",
+      "section": "boards",
+      "active": "share-preview",
+      "title": "分享页面",
+      "tabs": [],
+      "activeTab": null
+    },
+    "links": {
+      "scope": "global",
+      "section": "tracking",
+      "active": "links",
+      "title": "追踪管理",
+      "tabs": [
+        {
+          "page": "links",
+          "label": "链接追踪"
+        },
+        {
+          "page": "pixels",
+          "label": "图片追踪"
+        }
+      ],
+      "activeTab": "links"
+    },
+    "pixels": {
+      "scope": "global",
+      "section": "tracking",
+      "active": "links",
+      "title": "追踪管理",
+      "tabs": [
+        {
+          "page": "links",
+          "label": "链接追踪"
+        },
+        {
+          "page": "pixels",
+          "label": "图片追踪"
+        }
+      ],
+      "activeTab": "pixels"
+    },
+    "link-editor": {
+      "scope": "global",
+      "section": "tracking",
+      "active": "links",
+      "title": "创建链接",
+      "tabs": [
+        {
+          "page": "links",
+          "label": "链接追踪"
+        },
+        {
+          "page": "pixels",
+          "label": "图片追踪"
+        }
+      ],
+      "activeTab": "links"
+    },
+    "link-detail": {
+      "scope": "global",
+      "section": "tracking",
+      "active": "links",
+      "title": "链接详情",
+      "tabs": [
+        {
+          "page": "links",
+          "label": "链接追踪"
+        },
+        {
+          "page": "pixels",
+          "label": "图片追踪"
+        }
+      ],
+      "activeTab": "links"
+    },
+    "pixel-editor": {
+      "scope": "global",
+      "section": "tracking",
+      "active": "links",
+      "title": "创建图片追踪",
+      "tabs": [
+        {
+          "page": "links",
+          "label": "链接追踪"
+        },
+        {
+          "page": "pixels",
+          "label": "图片追踪"
+        }
+      ],
+      "activeTab": "pixels"
+    },
+    "pixel-detail": {
+      "scope": "global",
+      "section": "tracking",
+      "active": "links",
+      "title": "图片追踪详情",
+      "tabs": [
+        {
+          "page": "links",
+          "label": "链接追踪"
+        },
+        {
+          "page": "pixels",
+          "label": "图片追踪"
+        }
+      ],
+      "activeTab": "pixels"
+    },
+    "access-denied": {
+      "scope": "state",
+      "section": "websites",
+      "active": "access-denied",
+      "title": "没有访问权限",
+      "tabs": [],
+      "activeTab": null
+    },
+    "session-expired": {
+      "scope": "state",
+      "section": "websites",
+      "active": "session-expired",
+      "title": "需要重新登录",
+      "tabs": [],
+      "activeTab": null
+    },
+    "not-found": {
+      "scope": "state",
+      "section": "websites",
+      "active": "not-found",
+      "title": "页面不存在",
+      "tabs": [],
+      "activeTab": null
+    },
+    "ai-chat": {
+      "scope": "global",
+      "section": "ai-chat",
+      "active": "ai-chat",
+      "title": "快速发起"
+    },
+    "ai-config": {
+      "scope": "global",
+      "section": "ai-config",
+      "active": "ai-config",
+      "title": "AI配置器"
+    },
+    "help": {
+      "scope": "global",
+      "section": "help",
+      "active": "help",
+      "title": "帮助中心",
+      "tabs": [],
+      "activeTab": null
+    },
+    "crawlers-manage": {
+      "scope": "global",
+      "section": "crawlers-manage",
+      "active": "crawlers-manage",
+      "title": "爬虫管理",
+      "tabs": [],
+      "activeTab": null
+    },
+    "history-repair": {
+      "scope": "global",
+      "section": "websites",
+      "active": "websites",
+      "title": "历史数据修复",
+      "tabs": [],
+      "activeTab": null
+    },
+    "analytics-acceleration": {
+      "scope": "global",
+      "section": "websites",
+      "active": "websites",
+      "title": "统计加速",
+      "tabs": [],
+      "activeTab": null
+    }
+  },
+  "geo": {
+    "index": {
+      "scope": "website",
+      "section": "overview",
+      "active": "overview",
+      "title": "流量总览",
+      "tabs": [],
+      "activeTab": null
+    },
+    "ai": {
+      "scope": "website",
+      "section": "ai",
+      "active": "geo-ai",
+      "title": "抓取总览",
+      "tabs": [],
+      "activeTab": null
+    },
+    "ai-bots": {
+      "scope": "website",
+      "section": "ai",
+      "active": "geo-bots",
+      "title": "AI 爬虫",
+      "tabs": [],
+      "activeTab": null
+    },
+    "ai-pages": {
+      "scope": "website",
+      "section": "ai",
+      "active": "geo-ai-pages",
+      "title": "抓取页面",
+      "tabs": [],
+      "activeTab": null
+    },
+    "ai-preference": {
+      "scope": "website",
+      "section": "ai",
+      "active": "geo-preference",
+      "title": "内容偏好",
+      "tabs": [],
+      "activeTab": null
+    },
+    "human": {
+      "scope": "website",
+      "section": "visitors",
+      "active": "geo-human",
+      "title": "访客总览",
+      "tabs": [],
+      "activeTab": null
+    },
+    "human-geo": {
+      "scope": "website",
+      "section": "visitors",
+      "active": "geo-geography",
+      "title": "地域分布",
+      "tabs": [],
+      "activeTab": null
+    },
+    "human-source": {
+      "scope": "website",
+      "section": "visitors",
+      "active": "geo-sources",
+      "title": "来源渠道",
+      "tabs": [
+        {
+          "page": "geo-sources",
+          "label": "来源渠道"
+        },
+        {
+          "page": "geo-search-engines",
+          "label": "搜索引擎"
+        },
+        {
+          "page": "geo-keywords",
+          "label": "来源关键词"
+        },
+        {
+          "page": "utm",
+          "label": "UTM 活动"
+        }
+      ],
+      "activeTab": "geo-sources"
+    },
+    "content": {
+      "scope": "website",
+      "section": "behavior",
+      "active": "geo-content",
+      "title": "页面事件",
+      "tabs": [
+        {
+          "page": "geo-content",
+          "label": "页面与内容"
+        },
+        {
+          "page": "events",
+          "label": "事件分析"
+        },
+        {
+          "page": "heatmaps",
+          "label": "热力图"
+        },
+        {
+          "page": "performance",
+          "label": "页面性能"
+        }
+      ],
+      "activeTab": "geo-content"
+    },
+    "funnel": {
+      "scope": "website",
+      "section": "behavior",
+      "active": "geo-conversions",
+      "title": "转化分析",
+      "tabs": [
+        {
+          "page": "geo-conversions",
+          "label": "转化概览"
+        },
+        {
+          "page": "goals",
+          "label": "目标"
+        },
+        {
+          "page": "funnels",
+          "label": "漏斗"
+        },
+        {
+          "page": "attribution",
+          "label": "转化归因"
+        },
+        {
+          "page": "revenue",
+          "label": "收入"
+        }
+      ],
+      "activeTab": "geo-conversions"
+    },
+    "logs": {
+      "scope": "website",
+      "section": "monitor",
+      "active": "geo-logs",
+      "title": "日志监测",
+      "tabs": [],
+      "activeTab": null
+    },
+    "human-keywords": {
+      "scope": "website",
+      "section": "visitors",
+      "active": "geo-sources",
+      "title": "来源渠道",
+      "tabs": [
+        {
+          "page": "geo-sources",
+          "label": "来源渠道"
+        },
+        {
+          "page": "geo-search-engines",
+          "label": "搜索引擎"
+        },
+        {
+          "page": "geo-keywords",
+          "label": "来源关键词"
+        },
+        {
+          "page": "utm",
+          "label": "UTM 活动"
+        }
+      ],
+      "activeTab": "geo-keywords"
+    },
+    "human-search-engines": {
+      "scope": "website",
+      "section": "visitors",
+      "active": "geo-sources",
+      "title": "来源渠道",
+      "tabs": [
+        {
+          "page": "geo-sources",
+          "label": "来源渠道"
+        },
+        {
+          "page": "geo-search-engines",
+          "label": "搜索引擎"
+        },
+        {
+          "page": "geo-keywords",
+          "label": "来源关键词"
+        },
+        {
+          "page": "utm",
+          "label": "UTM 活动"
+        }
+      ],
+      "activeTab": "geo-search-engines"
+    }
+  },
+  "geoPixelApproval": {
+    "sidebarWidth": 228,
+    "maxHeaderHeight": 240,
+    "maxVerticalOffset": 144,
+    "geometryTolerance": 2,
+    "pixelRatio": 0.01
+  },
+  "geoChartApproval": {
+    "d2": {
+      "approval": "2026-10-04 用户要求 AI 蜘蛛构成图例保持单行，仅显示按请求量排序的 Top 5；圆环保留全部类别与提示",
+      "legend": {
+        "type": "scroll",
+        "left": 16,
+        "right": 16,
+        "bottom": 4,
+        "pageIconSize": 10
+      },
+      "legendLimit": 5
+    },
+    "s2": {
+      "approval": "2026-10-21 用户要求来源渠道的 AI 引荐平台图例仅显示一行，通过左右翻页查看其余平台；保留全部平台、圆环和悬停提示",
+      "legend": {
+        "type": "scroll",
+        "orient": "horizontal",
+        "left": 16,
+        "right": 16,
+        "bottom": 4,
+        "pageIconSize": 10
+      }
+    }
+  },
+  "standaloneHeadings": {
+    "login": "欢迎回来",
+    "login-2fa": "验证登录",
+    "sso": "单点登录"
+  },
+  "contextCases": [
+    {
+      "id": "admin-website-detail",
+      "page": "website-settings",
+      "route": "/admin/websites/{websiteId}",
+      "scope": "admin",
+      "section": "admin-websites",
+      "active": "admin-websites",
+      "title": "网站设置"
+    },
+    {
+      "id": "admin-team-detail",
+      "page": "team-detail",
+      "route": "/admin/teams/{teamId}",
+      "scope": "admin",
+      "section": "admin-teams",
+      "active": "admin-teams",
+      "title": "团队详情"
+    },
+    {
+      "id": "website-sharing",
+      "page": "sharing",
+      "route": "/liekan/sharing?context=website&websiteId={websiteId}",
+      "scope": "website",
+      "section": "website-settings",
+      "active": "website-settings",
+      "title": "分享管理"
+    }
+  ],
+  "websiteLayout": {
+    "version": "2026-10-04-tabs",
+    "websiteContext": "header",
+    "sectionLabels": "static",
+    "expanded": true,
+    "itemIcons": true,
+    "footer": "single-row",
+    "headerCopy": "title-only",
+    "rowHeight": 34,
+    "rowPitch": 36,
+    "fontSize": 13.5,
+    "contextHeight": 60,
+    "mobileRowHeight": 44,
+    "analysisContext": {
+      "approval": "2026-10-05 用户要求继续消除访问记录、人群分析、实时访客页头的高度差异，按同类页的标题、Tab、工具栏、正文顺序统一排版",
+      "columnGap": 16,
+      "rowGap": 8,
+      "headerHeight": 60,
+      "tabsHeight": 44,
+      "desktopMaxHeight": 39,
+      "bodyPaddingTop": 24,
+      "mobileActionMinHeight": 40
+    },
+    "toolbar": {
+      "approval": "2026-10-05 用户要求网站统计页面顶部的网站切换与日期、页面操作水平左右对齐置顶",
+      "contextPosition": "left",
+      "actionsPosition": "right",
+      "desktopHeight": 60,
+      "desktopControlHeight": 36,
+      "mobileControlMinHeight": 44,
+      "mobileActions": "wrap",
+      "titlePosition": "below"
+    }
+  },
+  "analysisTabs": {
+    "geo-sources": [
+      {
+        "page": "geo-sources",
+        "label": "来源渠道"
+      },
+      {
+        "page": "geo-search-engines",
+        "label": "搜索引擎"
+      },
+      {
+        "page": "geo-keywords",
+        "label": "来源关键词"
+      },
+      {
+        "page": "utm",
+        "label": "UTM 活动"
+      }
+    ],
+    "geo-content": [
+      {
+        "page": "geo-content",
+        "label": "页面与内容"
+      },
+      {
+        "page": "events",
+        "label": "事件分析"
+      },
+      {
+        "page": "heatmaps",
+        "label": "热力图"
+      },
+      {
+        "page": "performance",
+        "label": "页面性能"
+      }
+    ],
+    "sessions": [
+      {
+        "page": "sessions",
+        "label": "访问记录"
+      },
+      {
+        "page": "replays",
+        "label": "会话回放"
+      }
+    ],
+    "geo-conversions": [
+      {
+        "page": "geo-conversions",
+        "label": "转化概览"
+      },
+      {
+        "page": "goals",
+        "label": "目标"
+      },
+      {
+        "page": "funnels",
+        "label": "漏斗"
+      },
+      {
+        "page": "attribution",
+        "label": "转化归因"
+      },
+      {
+        "page": "revenue",
+        "label": "收入"
+      }
+    ],
+    "cohorts": [
+      {
+        "page": "cohorts",
+        "label": "行为人群"
+      },
+      {
+        "page": "retention",
+        "label": "留存分析"
+      },
+      {
+        "page": "journeys",
+        "label": "访问旅程"
+      },
+      {
+        "page": "breakdown",
+        "label": "维度拆分"
+      },
+      {
+        "page": "compare",
+        "label": "对比分析"
+      }
+    ]
+  },
+  "globalSectionLabels": {
+    "ai-config": "AI能力"
+  },
+  "manualReadApproval": {
+    "date": "2026-10-09",
+    "refreshLabel": "刷新",
+    "timeLabel": "本次读取：",
+    "idleMinutes": 10,
+    "automaticOrdinaryRead": false,
+    "preserveOriginalBody": true
+  },
+  "localization": {
+    "locales": [
+      "zh-CN",
+      "en-US"
+    ],
+    "defaultLocale": "zh-CN",
+    "entries": [
+      "account-menu",
+      "login-top-right",
+      "public-share-top-right",
+      "preferences"
+    ],
+    "accountFooter": "single-row",
+    "persistence": "browser preference with same-origin locale cookie and legacy storage migration",
+    "layout": "Preserve original reference geometry and chart forms; allow text wrapping and the approved language controls."
+  },
+  "productBranding": {
+    "name": "GEOInflow",
+    "version": "v1.2",
+    "buildVersion": "1.2.0",
+    "caption": "GEO STATS",
+    "publishers": [
+      "猎看科技",
+      "北京日报社智源GEO"
+    ],
+    "preserveOriginalReference": true,
+    "maxDesktopFooterHeight": 120
+  },
+  "geoColumnCopyApproval": {
+    "index": {
+      "人类 PV": "浏览 PV",
+      "AI/人 比值": "AI/浏览 比值"
+    }
+  },
+  "geoAnalysisTools": [
+    "高级筛选",
+    "流量质量",
+    "图表注释",
+    "导出数据",
+    "分享当前网站"
+  ],
+  "crawlerPagesApproval": {
+    "sourceCommit": "947897979",
+    "table": "apBody",
+    "addedColumn": {
+      "field": "title",
+      "label": "标题",
+      "after": "path"
+    },
+    "typeFilters": [
+      "全部",
+      "AI 训练",
+      "AI 搜索",
+      "用户触发",
+      "传统搜索",
+      "AI 工作台",
+      "个人 Agent",
+      "其他爬虫"
+    ],
+    "crawlerSelector": "具体爬虫",
+    "defaultCrawler": "全部爬虫",
+    "maxTableHeightIncrease": 160,
+    "policy": "Retain original HTML hashes, original comparisons and chart pixels. Apply the merged crawler page controls, title column and numeric heat presentation only to a separate reference rendering."
+  },
+  "geoCopyApproval": {
+    "index": {
+      "人类访客（UV）": "访客（UV）",
+      "AI 蜘蛛 vs 人类访问趋势": "AI 蜘蛛与浏览访问趋势",
+      "人类来源渠道": "访客来源渠道",
+      "页面双视角 TOP（AI 抓取 × 人类访问）": "页面双视角 TOP（AI 抓取 × 浏览访问）"
+    },
+    "ai": {
+      "AI vs 人类占比演化": "AI 与浏览访问占比趋势"
+    },
+    "ai-preference": {
+      "案例页 AI/人 比值": "案例页 AI/浏览 比值",
+      "内容类型偏好：AI vs 人类": "内容类型偏好：AI 与浏览访问"
+    },
+    "content": {
+      "页面排行（人类访问）": "页面排行（浏览访问）"
+    }
+  },
+  "historyRepairApproval": {
+    "date": "2026-10-22",
+    "plan": "v1.1",
+    "entries": [
+      "websites-action",
+      "admin-websites-action",
+      "website-data-settings",
+      "private-upgrade-notice"
+    ],
+    "route": "/settings/data-repair",
+    "preserveOriginalBody": true
+  },
+  "languageSwitchApproval": {
+    "date": "2026-10-24",
+    "placement": "upper-right",
+    "locales": [
+      "zh-CN",
+      "en-US"
+    ],
+    "defaultLocale": "zh-CN",
+    "persist": "browser-cookie-and-storage",
+    "shells": [
+      "management",
+      "website",
+      "authentication",
+      "identity-setup",
+      "public-share",
+      "fallback"
+    ],
+    "preserveOriginalBody": true,
+    "headerRows": "title-or-website-and-language-first-actions-wrap-below",
+    "desktopToolbarMaxRows": 3,
+    "maxAdditionalHeaderHeight": 88
+  },
+  "productInformation": {
+    "entry": "sidebar-footer-grid",
+    "label": "关于 GEOInflow",
+    "width": 1120,
+    "contributors": "pending",
+    "publishers": [
+      "https://www.liekan.com/?GEOInflow",
+      "https://geo.takefoto.cn/?GEOInflow"
+    ]
+  },
+  "todayCalendarApproval": {
+    "date": "2026-10-25",
+    "shortcuts": [
+      "今天",
+      "7 天",
+      "30 天"
+    ],
+    "defaultRange": "0day",
+    "defaultTimezone": "Asia/Shanghai",
+    "timezoneOwner": "account",
+    "multiTimezoneCountry": "explicit-city-confirmation",
+    "realtimeWindow": "30minute",
+    "retentionWindow": "month",
+    "legacy24hour": "preserve-explicit-rolling-links",
+    "bodyChartsTablesStyles": "preserve",
+    "copyCorrections": {
+      "AI 蜘蛛请求（30天）": "AI 蜘蛛请求"
+    },
+    "visitorTrendShortcut": "today",
+    "invalidDateRecovery": "0day"
+  }
+}

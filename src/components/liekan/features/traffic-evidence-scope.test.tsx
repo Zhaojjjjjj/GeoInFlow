@@ -1,0 +1,177 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { useState } from 'react';
+import type { CrawlerIdentityScope } from '@/lib/liekan/contracts/crawler-metrics';
+import { TrafficEvidencePanel } from './TrafficEvidencePanel';
+import { clientRequestOptions } from '@/lib/liekan/upstream/client-freshness';
+
+const mocks = vi.hoisted(() => ({ request: vi.fn(), download: vi.fn() }));
+vi.mock('@/lib/liekan/upstream/features-client', () => ({
+  featureRequest: mocks.request,
+  downloadTrafficEvidence: mocks.download,
+}));
+const range = { startAt: 1792022400000, endAt: 1792108800000, timezone: 'UTC' };
+const websiteId = '12345678-1234-4234-8234-123456789012';
+function Harness() {
+  const [scope, setScope] = useState<CrawlerIdentityScope>('all');
+  return (
+    <>
+      <select
+        aria-label="test scope"
+        value={scope}
+        onChange={e => setScope(e.target.value as CrawlerIdentityScope)}
+      >
+        <option value="all">All</option>
+        <option value="verified_range">Verified</option>
+      </select>
+      <TrafficEvidencePanel
+        websiteId={websiteId}
+        hostname="example.com"
+        range={range}
+        identityScope={scope}
+        onIdentityScope={setScope}
+      />
+    </>
+  );
+}
+beforeEach(() => {
+  mocks.request.mockReset();
+  mocks.request.mockImplementation(async (_method, _path, query) => ({
+    meta: {
+      sources: [],
+      snapshot: 'a'.repeat(64),
+      policySnapshot: 'b'.repeat(64),
+      readAt: new Date(range.endAt).toISOString(),
+      conditions: query,
+      quality: { state: 'unknown' },
+      page: 1,
+      total: 1,
+    },
+    rows:
+      query.view === 'requests'
+        ? [{ time: '2026-10-15', path: '/record', method: 'GET', status: 200, bot: 'GPTBot' }]
+        : [
+            { identity: 'unverified', response: '2xx', requests: 3 },
+            { identity: 'verified_range', response: '2xx', requests: 5 },
+          ],
+    ...(query.view === 'requests'
+      ? {}
+      : {
+          totals: { requests: 8 },
+          reasons: [],
+          coverage: { value: null },
+          ambiguousRequests: 0,
+        }),
+    outsideScope:
+      query.crawlerIdentityScope === 'verified_range'
+        ? [{ identity: 'unverified', response: '2xx', requests: 3 }]
+        : [],
+  }));
+});
+it('returns from a request response to the matrix without rendering the old response shape', async () => {
+  render(<Harness />);
+  fireEvent.click(await screen.findByRole('button', { name: '未核验 2xx' }));
+  fireEvent.click(await screen.findByRole('button', { name: '返回身份矩阵' }));
+  expect(await screen.findByRole('button', { name: '未核验 2xx' })).toHaveTextContent('3');
+  expect(screen.queryByText('/record')).not.toBeInTheDocument();
+});
+it('clears a drilled identity when the outer identity scope changes, including when switched back', async () => {
+  render(<Harness />);
+  fireEvent.click(await screen.findByRole('button', { name: '未核验 2xx' }));
+  await screen.findByRole('button', { name: '返回身份矩阵' });
+  expect(mocks.request.mock.calls.at(-1)[2]).toMatchObject({
+    view: 'requests',
+    verificationGroup: 'unverified',
+  });
+  mocks.request.mockClear();
+  fireEvent.change(screen.getByLabelText('test scope'), { target: { value: 'verified_range' } });
+  await screen.findByRole('button', { name: '官方范围匹配 2xx' });
+  expect(mocks.request.mock.calls.every(([, , q]) => !q.verificationGroup)).toBe(true);
+  expect(mocks.request.mock.calls.at(-1)[2].crawlerIdentityScope).toBe('verified_range');
+  fireEvent.change(screen.getByLabelText('test scope'), { target: { value: 'all' } });
+  await screen.findByRole('button', { name: '未核验 2xx' });
+  expect(screen.queryByRole('button', { name: '返回身份矩阵' })).not.toBeInTheDocument();
+});
+it('preserves the explicit outside-scope shortcut while widening to all identities', async () => {
+  render(<Harness />);
+  await screen.findByRole('button', { name: '未核验 2xx' });
+  fireEvent.change(screen.getByLabelText('test scope'), { target: { value: 'verified_range' } });
+  await screen.findByText('范围外参考');
+  fireEvent.click(screen.getByText('范围外参考'));
+  fireEvent.click(screen.getByRole('button', { name: /切换到全部声明查看/ }));
+  await screen.findByRole('button', { name: '返回身份矩阵' });
+  await waitFor(() =>
+    expect(mocks.request.mock.calls.at(-1)[2]).toMatchObject({
+      crawlerIdentityScope: 'all',
+      view: 'requests',
+      verificationGroup: 'unverified',
+      responseGroup: '2xx',
+    }),
+  );
+  expect(screen.getByLabelText('test scope')).toHaveValue('all');
+});
+it('pins source discovery and pagination to one catalog read round until explicit reload', async () => {
+  const scopes: string[] = [];
+  const original = mocks.request.getMockImplementation();
+  mocks.request.mockImplementation(async (method, path, query, signal) => {
+    scopes.push(clientRequestOptions(signal)?.catalogScope);
+    const data = await original(method, path, query, signal);
+    data.meta.page = query.page || 1;
+    data.meta.total = 41;
+    return data;
+  });
+  render(<Harness />);
+  fireEvent.click(await screen.findByRole('button', { name: '未核验 2xx' }));
+  fireEvent.click(await screen.findByRole('button', { name: '下一页' }));
+  await waitFor(() => expect(mocks.request.mock.calls.at(-1)[2].page).toBe(2));
+  expect(scopes.length).toBeGreaterThanOrEqual(4);
+  expect(scopes.every(scope => typeof scope === 'string' && scope.length > 0)).toBe(true);
+  expect(new Set(scopes).size).toBe(1);
+  const firstScope = scopes[0];
+  fireEvent.click(screen.getByRole('button', { name: '重新读取' }));
+  await waitFor(() => expect(scopes.at(-1)).not.toBe(firstScope));
+  expect(mocks.request.mock.calls.at(-1)[2].page).toBe(1);
+});
+
+it('shows reception identity unavailability while keeping observed PV and features', async () => {
+  mocks.request.mockImplementation(async (_method, _path, query) => ({
+    meta: {
+      sources: [],
+      readAt: new Date(range.endAt).toISOString(),
+      conditions: query,
+      page: 1,
+      total: 1,
+      quality: { state: 'complete' },
+      observationIdentity: { status: 'partial', coverage: 0.5, timeBasis: 'received_at' },
+    },
+    rows: [
+      {
+        browser: 'Chrome',
+        source: 'browser',
+        classification: 'browser',
+        features: null,
+        pv: 2,
+        uv: null,
+        smallSample: true,
+      },
+    ],
+    totals: { pv: 2, flaggedPv: 2, flaggedUv: null },
+    coverage: {},
+    state: 'available',
+  }));
+  render(
+    <TrafficEvidencePanel
+      websiteId={websiteId}
+      hostname="example.com"
+      range={range}
+      mode="observations"
+    />,
+  );
+  expect(
+    await screen.findByText(
+      '所选范围存在身份信息缺失，访客、会话及依赖身份的指标不可用；浏览量仍可统计。',
+    ),
+  ).toBeInTheDocument();
+  expect(screen.getByText('Chrome').closest('tr')).toHaveTextContent('2—');
+  expect(screen.getByText(/与既有行为观察重叠的 PV \/ UV 2 \/ —/)).toHaveTextContent('2 / —');
+});

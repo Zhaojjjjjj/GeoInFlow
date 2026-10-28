@@ -1,0 +1,48 @@
+name: Bootstrap database (one-time)
+
+# One-time (idempotent) database initialization for the Vercel edition.
+# Runs the same steps as the Docker first-install entrypoint:
+# upstream Prisma migrations -> Liekan SQL migrations -> official demo
+# import -> pg-boss queue bootstrap.
+#
+# Before running: add repository secrets DATABASE_URL (the Supabase
+# *Session pooler* connection string, port 5432) and APP_SECRET (the same
+# value as the production APP_SECRET on Vercel; the demo seed needs it).
+# Then: Actions -> "Bootstrap database (one-time)" -> Run workflow.
+# Safe to re-run; every step is idempotent.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: bootstrap-database
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+      - name: Install pnpm
+        run: npm install -g pnpm@12.3.4
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Pin database host to IPv4
+        # Supabase hostnames also publish AAAA records and these runners
+        # have no IPv6 route (connect ENETUNREACH); --dns-result-order is
+        # not honored by every driver in the stack, so pin the host.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/resolve-db-host.mjs | sudo tee -a /etc/hosts
+      - name: Run bootstrap
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # The demo seed derives demo-data hashes from APP_SECRET; it must
+          # be the same value as the production APP_SECRET on Vercel.
+          APP_SECRET: ${{ secrets.APP_SECRET }}
+          NODE_OPTIONS: --dns-result-order=ipv4first
+        run: pnpm vercel:bootstrap

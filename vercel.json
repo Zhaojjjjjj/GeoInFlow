@@ -1,0 +1,1 @@
+{"$schema":"https://openapi.vercel.sh/vercel.json","buildCommand":"npx --yes pnpm@12.3.4 build:vercel","framework":"nextjs","functions":{"src/app/api/cron/analytics-worker/route.ts":{"maxDuration":300},"src/app/api/cron/log-worker/route.ts":{"maxDuration":300}},"installCommand":"npx --yes pnpm@12.3.4 install --frozen-lockfile"}

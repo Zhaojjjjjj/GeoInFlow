@@ -1,0 +1,146 @@
+import clickhouse from '@/lib/clickhouse';
+import { EVENT_TYPE } from '@/lib/constants';
+import {
+  getClickHouseCountrySQL,
+  getClickHouseRegionSQL,
+  getPostgresCountrySQL,
+  getPostgresRegionSQL,
+} from '@/lib/country';
+import { CLICKHOUSE, PRISMA, runQuery } from '@/lib/db';
+import prisma from '@/lib/prisma';
+import type { IdentityPageResult, QueryFilters, WebsiteSession } from '@/lib/types';
+
+const FUNCTION_NAME = 'getRevenueSessions';
+
+export async function getRevenueSessions(
+  ...args: [websiteId: string, currency: string, filters: QueryFilters]
+): Promise<IdentityPageResult<WebsiteSession[]>> {
+  return runQuery({
+    [PRISMA]: () => relationalQuery(...args),
+    [CLICKHOUSE]: () => clickhouseQuery(...args),
+  });
+}
+
+async function relationalQuery(websiteId: string, currency: string, filters: QueryFilters) {
+  const { pagedRawQuery, parseFilters } = prisma;
+  const { search } = filters;
+  const { filterQuery, dateQuery, cohortQuery, queryParams } = parseFilters({
+    ...filters,
+    websiteId,
+    currency,
+    search: search ? `%${search}%` : undefined,
+  });
+
+  const searchQuery = search
+    ? `and (session.browser ilike {{search}}
+           or session.os ilike {{search}}
+           or session.device ilike {{search}}
+           or session.city ilike {{search}})`
+    : '';
+
+  return pagedRawQuery(
+    `
+    select
+      session.session_id as "id",
+      session.website_id as "websiteId",
+      (array_agg(website_event.hostname order by website_event.created_at desc,website_event.event_id desc))[1] as hostname,
+      (array_agg(session.browser order by website_event.created_at desc,website_event.event_id desc))[1] as browser,
+      (array_agg(session.os order by website_event.created_at desc,website_event.event_id desc))[1] as os,
+      (array_agg(session.device order by website_event.created_at desc,website_event.event_id desc))[1] as device,
+      (array_agg(session.screen order by website_event.created_at desc,website_event.event_id desc))[1] as screen,
+      (array_agg(session.language order by website_event.created_at desc,website_event.event_id desc))[1] as language,
+      ${getPostgresCountrySQL('(array_agg(session.country order by website_event.created_at desc,website_event.event_id desc))[1]')} as country,
+      ${getPostgresRegionSQL('(array_agg(session.country order by website_event.created_at desc,website_event.event_id desc))[1]', '(array_agg(session.region order by website_event.created_at desc,website_event.event_id desc))[1]')} as region,
+      (array_agg(session.city order by website_event.created_at desc,website_event.event_id desc))[1] as city,
+      min(website_event.created_at) as "firstAt",
+      max(website_event.created_at) as "lastAt",
+      count(distinct website_event.visit_id) as "visits",
+      sum(case when website_event.event_type = 1 then 1 else 0 end) as "views",
+      sum(case when website_event.event_type = 2 then 1 else 0 end) as "events",
+      max(website_event.created_at) as "createdAt"
+    from website_event
+    ${cohortQuery}
+    join session
+      on session.session_id = website_event.session_id
+      and session.website_id = website_event.website_id
+    join (
+      select distinct session_id
+      from revenue
+      where website_id = {{websiteId::uuid}}
+      and revenue.created_at between {{startDate}} and {{endDate}}
+        and upper(currency) = {{currency}}
+    ) rev on rev.session_id = website_event.session_id
+    where website_event.website_id = {{websiteId::uuid}}
+      and website_event.event_type != ${EVENT_TYPE.performance}
+    ${dateQuery}
+    ${filterQuery}
+    ${searchQuery}
+    group by
+      session.session_id,
+      session.website_id
+    order by max(website_event.created_at) desc
+    `,
+    queryParams,
+    filters,
+    FUNCTION_NAME,
+  );
+}
+
+async function clickhouseQuery(websiteId: string, currency: string, filters: QueryFilters) {
+  const { pagedRawQuery, parseFilters, getDateStringSQL } = clickhouse;
+  const { search } = filters;
+  const { filterQuery, dateQuery, cohortQuery, queryParams } = parseFilters({
+    ...filters,
+    websiteId,
+    currency,
+  });
+
+  const searchQuery = search
+    ? `and ((positionCaseInsensitive(browser, {search:String}) > 0)
+           or (positionCaseInsensitive(city, {search:String}) > 0)
+           or (positionCaseInsensitive(os, {search:String}) > 0)
+           or (positionCaseInsensitive(device, {search:String}) > 0))`
+    : '';
+
+  return pagedRawQuery(
+    `
+    select
+      session_id as id,
+      website_id as websiteId,
+      hostname,
+      browser,
+      os,
+      device,
+      screen,
+      language,
+      ${getClickHouseCountrySQL('website_event.country')} as country,
+      ${getClickHouseRegionSQL('website_event.country', 'website_event.region')} as region,
+      city,
+      ${getDateStringSQL('min(created_at)')} as firstAt,
+      ${getDateStringSQL('max(created_at)')} as lastAt,
+      uniq(visit_id) as visits,
+      sumIf(1, event_type = 1) as views,
+      sumIf(1, event_type = 2) as events,
+      max(created_at) as createdAt
+    from website_event
+    ${cohortQuery}
+    where website_id = {websiteId:UUID}
+      and event_type != ${EVENT_TYPE.performance}
+    ${dateQuery}
+    ${filterQuery}
+    ${searchQuery}
+      and session_id in (
+        select distinct session_id
+        from website_revenue
+        where website_id = {websiteId:UUID}
+        ${dateQuery}
+          and upper(currency) = {currency:String}
+      )
+    group by session_id, website_id, hostname, browser, os, device, screen, language, country, region, city
+    order by max(created_at) desc
+    `,
+    queryParams,
+    filters,
+    FUNCTION_NAME,
+  );
+}

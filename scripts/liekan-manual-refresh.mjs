@@ -1,0 +1,692 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { chromium, expect } from '@playwright/test';
+import { isolatedAcceptanceTarget, acceptanceSeedFile } from './liekan-acceptance-target.mjs';
+import {
+  manualReadInventory,
+  manualPageReads,
+  manualRouteFeature,
+  assertManualPageReads,
+  manualReadKind,
+  livePageReadAllowed,
+} from './liekan-manual-read-contract.mjs';
+
+const base = process.env.LIEKAN_URL || 'http://127.0.0.1:3302';
+const target = isolatedAcceptanceTarget(base);
+const seed = JSON.parse(fs.readFileSync(acceptanceSeedFile(target), 'utf8'));
+const inventory = manualReadInventory();
+const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+let token;
+async function api(method, path, body, headers = {}) {
+  const response = await fetch(base + '/api' + path, {
+    method,
+    headers: {
+      'content-type': 'application/json',
+      ...headers,
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  assert.equal(response.status, 200, `${method} ${path}: ${response.status}`);
+  return response.json();
+}
+token = (await api('POST', '/auth/login', seed.admin)).token;
+const board = await api('POST', '/boards', {
+  name: '手动读取验收 · 隔离看板',
+  type: 'website',
+  parameters: {
+    websiteId: seed.website.id,
+    rows: [
+      {
+        id: 'manual-row',
+        columns: [
+          {
+            id: 'manual-component',
+            size: 100,
+            component: {
+              title: '访客趋势',
+              type: 'WebsiteChart',
+              entityType: 'website',
+              entityId: seed.website.id,
+            },
+          },
+        ],
+      },
+    ],
+  },
+});
+const share = await api('POST', '/share', {
+  name: '手动读取验收 · 隔离分享',
+  entityId: seed.website.id,
+  shareType: 1,
+  parameters: { overview: true, events: true, allowFilter: true },
+});
+const journey = await api(
+  'GET',
+  `/liekan/websites/${seed.website.id}/journeys?` +
+    new URLSearchParams({
+      ...seed.range,
+      endAt: Date.now(),
+      steps: 3,
+      type: 'all',
+      timezone: 'UTC',
+    }),
+);
+const rows = data => (Array.isArray(data) ? data : data.data || []);
+const goalDefinitions = rows(await api('GET', `/websites/${seed.website.id}/goals?pageSize=100`));
+const funnelDefinitions = rows(
+  await api('GET', `/websites/${seed.website.id}/funnels?pageSize=100`),
+);
+assert(journey.rows[0]?.nodes?.length, 'Journey detail requires an observed sequence fixture');
+const browser = await chromium.launch({
+  headless: true,
+  ignoreDefaultArgs: ['--disable-back-forward-cache'],
+  ...(!process.env.CI ? { channel: 'chrome' } : {}),
+});
+const out = 'test-results/liekan-manual-refresh';
+fs.mkdirSync(out, { recursive: true });
+const report = {
+  head,
+  passed: false,
+  finalized: false,
+  featureIds: inventory.features.map(page => page.id),
+  routes: inventory.routes.map(route => route.source),
+  pageFiles: inventory.files,
+  definitionCounts: { goals: goalDefinitions.length, funnels: funnelDefinitions.length },
+  checks: [],
+  realIdle: [],
+  errors: [],
+  httpReads: [],
+  metadataReads: [],
+};
+const save = () => fs.writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 2));
+const describeRead = request => {
+  const url = new URL(request.url());
+  return {
+    path: url.pathname,
+    ...Object.fromEntries(
+      ['kind', 'type', 'resource', 'eventName', 'sessionId', 'startAt', 'endAt', 'timezone', 'crawlerMetricsVersion']
+        .filter(key => url.searchParams.has(key))
+        .map(key => [key, url.searchParams.get(key)]),
+    ),
+  };
+};
+const readKind = request => manualReadKind(request.method(), new URL(request.url()).pathname);
+let lastForcedRead = 0;
+const forcedInFlight = new Set();
+async function waitForForcedReadCooldown() {
+  await expect(() => assert.equal(forcedInFlight.size, 0, 'Forced reads still in flight')).toPass({
+    timeout: 30000,
+    intervals: [100, 250, 500],
+  });
+  // The server starts its cooldown after authentication and permission checks.
+  // Wait after HTTP termination across sequential pages sharing one actor.
+  while (Date.now() - lastForcedRead < 5100)
+    await new Promise(resolve => setTimeout(resolve, 5100 - (Date.now() - lastForcedRead)));
+}
+async function open(url, authenticated = true, cacheableDocument = false) {
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    locale: 'zh-CN',
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+  });
+  if (authenticated)
+    await context.addInitScript(
+      ({ origin, token }) => {
+        if (location.origin !== origin || sessionStorage.getItem('manual.auth.seeded')) return;
+        sessionStorage.setItem('manual.auth.seeded', '1');
+        localStorage.setItem('umami.auth', JSON.stringify(token));
+      },
+      { origin: target.origin, token },
+    );
+  let sourceCacheControl;
+  if (cacheableDocument) {
+    // Chrome recommends a response-header fixture for testing a cacheable document.
+    // https://developer.chrome.com/docs/devtools/application/back-forward-cache
+    // The fixture changes only this synthetic HTML response; API privacy headers stay intact.
+    await context.route(base + url, async route => {
+      const response = await route.fetch();
+      sourceCacheControl = response.headers()['cache-control'];
+      assert.match(sourceCacheControl, /no-store/);
+      await route.fulfill({
+        response,
+        headers: { ...response.headers(), 'cache-control': 'private, no-cache, max-age=0' },
+      });
+    });
+  }
+  const page = await context.newPage();
+  await context.addInitScript(() => {
+    window.addEventListener('pageshow', event => {
+      window.__manualPageShow = { trusted: event.isTrusted, persisted: event.persisted };
+    });
+  });
+  const reads = [],
+    readDetails = [],
+    successes = [],
+    logouts = [];
+  const requestDetails = new WeakMap();
+  const successfulResponses = new WeakSet();
+  page.on('request', request => {
+    const kind = readKind(request);
+    if (kind !== 'ignored') {
+      const url = new URL(request.url());
+      if (kind === 'ordinary') reads.push(url.pathname);
+      const detail = {
+        ...describeRead(request),
+        refresh: url.searchParams.get('refresh') === '1',
+        startedAt: Date.now(),
+      };
+      if (kind === 'ordinary') readDetails.push(detail);
+      requestDetails.set(request, detail);
+      (kind === 'ordinary' ? report.httpReads : report.metadataReads).push(detail);
+      if (detail.refresh) forcedInFlight.add(request);
+    }
+  });
+  page.on('response', response => {
+    const detail = requestDetails.get(response.request());
+    if (detail) {
+      detail.status = response.status();
+      detail.retryAfter = response.headers()['retry-after'] ?? null;
+    }
+    if (
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === '/api/auth/logout'
+    )
+      logouts.push(response.status());
+    if (
+      response.request().method() === 'GET' &&
+      new URL(response.url()).pathname.startsWith('/api/') &&
+      response.ok()
+    )
+      successfulResponses.add(response.request());
+  });
+  page.on('requestfinished', request => {
+    const detail = requestDetails.get(request);
+    if (detail) detail.finishedAt = Date.now();
+    // Only completed response bodies satisfy the endpoint contract. Superseded
+    // requests remain in diagnostics; their successful replacements must finish.
+    if (successfulResponses.has(request)) successes.push(describeRead(request));
+    // A cold dashboard read also registers a forced producer for its closed batch.
+    // Browser clock emulation does not advance the server's admission cooldown.
+    if (forcedInFlight.delete(request) || detail?.status === 202) lastForcedRead = Date.now();
+  });
+  page.on('requestfailed', request => {
+    const detail = requestDetails.get(request);
+    if (detail) {
+      detail.finishedAt = Date.now();
+      detail.failure = request.failure()?.errorText ?? 'Request failed';
+    }
+    if (forcedInFlight.delete(request)) lastForcedRead = Date.now();
+  });
+  page.on('pageerror', error => report.errors.push(error.message));
+  const documentResponse = await page.goto(base + url);
+  await ready(page);
+  if (cacheableDocument) await context.unroute(base + url);
+  return {
+    context,
+    page,
+    reads,
+    readDetails,
+    successes,
+    logouts,
+    sourceCacheControl: sourceCacheControl || documentResponse.headers()['cache-control'],
+    documentCacheControl: documentResponse.headers()['cache-control'],
+  };
+}
+async function ready(page) {
+  await page.waitForLoadState('networkidle');
+  // Legacy public reports use h2 headings and expose the shared refresh control.
+  await page.waitForFunction(() => !!document.querySelector('main,h1,form,[data-manual-refresh]'));
+  await page.waitForFunction(
+    () => !document.querySelector('[data-manual-refresh]:disabled'),
+    null,
+    { timeout: 30000 },
+  );
+}
+async function verifyPageReads(page, policy, successes, label, from = 0) {
+  // SPA history changes the URL before React mounts the returning page and starts its reads.
+  await expect(() => assertManualPageReads(policy, successes.slice(from), label)).toPass({
+    timeout: 30000,
+    intervals: [100, 250, 500],
+  });
+  await ready(page);
+}
+function parameters(id) {
+  const value = {
+    websiteId: seed.website.id,
+    date: `range:${seed.range.startAt}:${Date.now()}:day`,
+    unit: 'day',
+  };
+  const ids = {
+    'session-detail': seed.data.sessionId,
+    'replay-player': seed.data.replayVisitId,
+    'admin-user': seed.user.id,
+    'team-detail': seed.team.id,
+    'link-detail': seed.link.id,
+    'pixel-detail': seed.pixel.id,
+    'board-design': board.id,
+    'board-view': board.id,
+    'board-editor': board.id,
+    'share-preview': share.id,
+  };
+  if (ids[id]) value.id = ids[id];
+  if (id === 'share-preview') value.slug = share.slug;
+  if (id === 'event-detail') value.eventName = seed.data.eventNames[0];
+  if (id === 'path-detail')
+    Object.assign(value, {
+      sequence: JSON.stringify(journey.rows[0]?.nodes || []),
+      steps: '3',
+      type: 'all',
+    });
+  return new URLSearchParams(value);
+}
+const identities = new Set(['login', 'login-2fa', 'sso']);
+const cases = inventory.features.map(feature => ({
+  id: feature.id,
+  featureId: feature.id,
+  resourceId: parameters(feature.id).get('id'),
+  url: identities.has(feature.id)
+    ? feature.id === 'login-2fa'
+      ? '/login/two-factor'
+      : '/' + feature.id
+    : `/liekan/${feature.id}?${parameters(feature.id)}`,
+  authenticated: !identities.has(feature.id),
+}));
+const values = {
+  websiteId: seed.website.id,
+  teamId: seed.team.id,
+  userId: seed.user.id,
+  boardId: board.id,
+  linkId: seed.link.id,
+  pixelId: seed.pixel.id,
+  sessionId: seed.data.sessionId,
+  replayId: seed.data.replayVisitId,
+  slug: share.slug,
+};
+for (const route of [...inventory.routes, ...inventory.geo]) {
+  if (route.route.includes('[[...path]]')) continue;
+  if (route.entry === '弹层拦截') continue; // Their direct detail and modal flows have separate UI acceptance.
+  const url = route.route.replace(/\[([^\]]+)\]/g, (_, key) => values[key]);
+  const featureId = manualRouteFeature(route, inventory.features);
+  const resourceKey = [...route.route.matchAll(/\[([^\]]+)\]/g)]
+    .map(match => match[1])
+    .find(key => key !== 'websiteId');
+  cases.push({
+    id: route.source,
+    featureId,
+    resourceId: resourceKey ? values[resourceKey] : null,
+    url,
+    authenticated: !['/login', '/login/two-factor', '/sso'].includes(url),
+  });
+}
+cases.push(
+  {
+    id: 'public-share',
+    featureId: 'public-share',
+    url: `/share/${share.slug}`,
+    authenticated: false,
+  },
+  {
+    id: 'legacy-public-share',
+    featureId: 'legacy-public-share',
+    url: `/share/${share.slug}?legacy=1`,
+    authenticated: false,
+  },
+  { id: 'help', featureId: 'help', url: '/liekan/help' },
+  { id: 'dashboard', featureId: 'dashboard', url: '/dashboard' },
+  { id: 'dashboard-edit', featureId: 'dashboard-edit', url: '/dashboard/edit' },
+);
+const seen = new Set();
+const realCases = [
+  '/websites',
+  `/websites/${seed.website.id}/geo`,
+  `/websites/${seed.website.id}/realtime`,
+  `/websites/${seed.website.id}/geo/logs`,
+];
+let realSessions = [];
+try {
+  // These contexts run concurrently with route coverage, using real elapsed time.
+  realSessions = await Promise.all(realCases.map(url => open(url)));
+  const realPolicies = ['websites', 'geo:overview', 'realtime', 'geo:logs'].map(id =>
+    manualPageReads(id, { websiteId: seed.website.id }),
+  );
+  await Promise.all(
+    realSessions.map((session, index) =>
+      verifyPageReads(
+        session.page,
+        realPolicies[index],
+        session.successes,
+        `${realCases[index]}: real idle entry`,
+      ),
+    ),
+  );
+  const realStarted = Date.now();
+  const realBaselines = realSessions.map(session => session.reads.length);
+  // Submit after the initial snapshot so the real idle interval covers batch publication.
+  const session = realSessions[1];
+  const metric = session.page.locator('[class*="metricValue"]');
+  assert((await metric.count()) > 0, 'Real overview has no rendered metrics');
+  const renderedBefore = await metric.allTextContents();
+  const statsPath =
+    `/websites/${seed.website.id}/stats?` +
+    new URLSearchParams({
+      ...seed.range,
+      endAt: Date.now() + 60000,
+      timezone: 'UTC',
+      refresh: '1',
+    });
+  const before = await api('GET', statsPath);
+  const beforeReadAt = Date.now();
+  const userAgent = await session.page.evaluate(() => navigator.userAgent);
+  await api(
+    'POST',
+    '/send',
+    {
+      type: 'event',
+      payload: {
+        website: seed.website.id,
+        hostname: seed.website.domain,
+        url: '/manual-refresh-acceptance',
+        title: 'Manual read acceptance',
+        id: `manual-refresh-${Date.now()}`,
+        language: 'zh-CN',
+        screen: '1440x1000',
+      },
+    },
+    { 'user-agent': userAgent, 'x-liekan-fixture-ip': '192.0.2.1' },
+  );
+  // Verify production privacy eviction and a genuine cacheable-document BFCache return.
+  async function verifyHistory(cacheableDocument) {
+    const history = await open(`/share/${share.slug}`, false, cacheableDocument);
+    try {
+      // Native history navigation avoids Playwright's unsupported BFCache load lifecycle.
+      const native = await history.context.newCDPSession(history.page);
+      const evictions = [];
+      native.on('Page.backForwardCacheNotUsed', event => evictions.push(event));
+      await native.send('Page.enable');
+      const entries = await native.send('Page.getNavigationHistory');
+      const entryId = entries.entries[entries.currentIndex].id;
+      await history.page.evaluate(() => {
+        window.__manualAcceptanceLifetime = 'cached-history';
+      });
+      await history.page.goto(base + '/liekan/help');
+      await ready(history.page);
+      const prior = history.successes.length;
+      const read = history.page.waitForResponse(
+        response =>
+          response.ok() &&
+          response.request().method() === 'GET' &&
+          new URL(response.url()).pathname.endsWith('/shared-report'),
+      );
+      await native.send('Page.navigateToHistoryEntry', { entryId });
+      await read;
+      await ready(history.page);
+      const state = await native.send('Runtime.evaluate', {
+        expression:
+          'JSON.stringify({marker:window.__manualAcceptanceLifetime,event:window.__manualPageShow})',
+        returnByValue: true,
+      });
+      const restored = JSON.parse(state.result.value);
+      assert.match(history.sourceCacheControl, /no-store/);
+      if (cacheableDocument) {
+        assert.equal(restored.marker, 'cached-history', 'History return lost the cached document');
+        assert.deepEqual(
+          restored.event,
+          { trusted: true, persisted: true },
+          'No actual BFCache pageshow',
+        );
+        assert.doesNotMatch(history.documentCacheControl, /no-store/);
+      } else {
+        assert.equal(
+          restored.marker,
+          undefined,
+          'Private no-store document unexpectedly persisted',
+        );
+        assert.deepEqual(restored.event, { trusted: true, persisted: false });
+        assert.match(history.documentCacheControl, /no-store/);
+        assert(
+          evictions.some(event =>
+            event.notRestoredExplanations.some(
+              item => item.reason === 'JsNetworkRequestReceivedCacheControlNoStoreResource',
+            ),
+          ),
+          'Browser did not report the private no-store request eviction',
+        );
+      }
+      assertManualPageReads(
+        manualPageReads('public-share', { websiteId: seed.website.id }),
+        history.successes.slice(prior),
+        'BFCache history return',
+      );
+      const proof = {
+        passed: true,
+        cacheableDocumentFixture: cacheableDocument,
+        sourceCacheControl: history.sourceCacheControl,
+        documentCacheControl: history.documentCacheControl,
+        evictionReasons: evictions.flatMap(event =>
+          event.notRestoredExplanations.map(item => item.reason),
+        ),
+        driver: 'native-browser-history',
+        restored,
+        newReads: history.successes.length - prior,
+      };
+      if (cacheableDocument) report.cachedHistory = proof;
+      else report.noStoreHistory = proof;
+      save();
+    } finally {
+      await history.context.close();
+    }
+  }
+  await verifyHistory(false);
+  await verifyHistory(true);
+  for (const item of cases) {
+    const key = `${item.authenticated !== false}:${item.url}`;
+    if (seen.has(key)) {
+      report.checks.push({ id: item.id, aliasOf: key });
+      continue;
+    }
+    seen.add(key);
+    const { context, page, reads, readDetails, successes, logouts } = await open(
+      item.url,
+      item.authenticated !== false,
+    );
+    try {
+      const policy = manualPageReads(item.featureId, {
+        websiteId: seed.website.id,
+        admin: true,
+        id: item.resourceId,
+        eventName: seed.data.eventNames[0],
+        goalId: goalDefinitions[0]?.id,
+        funnelId: funnelDefinitions[0]?.id,
+      });
+      if (item.url === '/logout') {
+        await page.waitForURL(url => url.pathname === '/login');
+        assert.equal(
+          await page.evaluate(() => localStorage.getItem('umami.auth') === null),
+          true,
+          'Logout retained client credentials',
+        );
+        assert.deepEqual(logouts, [200], 'Logout did not submit exactly one successful request');
+        assert(
+          reads.every(path => path === '/api/config'),
+          'Logout read private page data',
+        );
+        policy.exception = '退出登录清理凭据并返回登录页面';
+      }
+      await verifyPageReads(page, policy, successes, `${item.id}: entry`);
+      const initial = reads.length,
+        successful = successes.length;
+      const unresolved = page
+        .getByRole('alert')
+        .filter({ hasText: /读取失败|请求失败|当前页面数据无法读取/ });
+      assert.equal(await unresolved.count(), 0, `${item.id}: ordinary entry failed`);
+      const menuLink = page.locator('a[href^="/liekan/help"]').first();
+      if (await menuLink.count()) {
+        await menuLink.hover();
+        await menuLink.focus();
+        await ready(page);
+        assert.equal(reads.length, initial, `${item.id}: menu hover or focus read`);
+      }
+      await page.clock.install({ time: new Date() });
+      await page.clock.fastForward(600000);
+      await ready(page);
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+        document.dispatchEvent(new Event('visibilitychange'));
+        Object.defineProperty(document, 'visibilityState', {
+          configurable: true,
+          value: 'visible',
+        });
+        document.dispatchEvent(new Event('visibilitychange'));
+        window.dispatchEvent(new Event('focus'));
+        window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+      });
+      await context.setOffline(true);
+      await context.setOffline(false);
+      await ready(page);
+      const idleDelta = reads.length - initial;
+      assert(readDetails.slice(initial).every(read => livePageReadAllowed(read)), `${item.id}: unexpected automatic read outside realtime/today scope`);
+      const control = page.locator('[data-manual-refresh]').first();
+      let refreshed = null;
+      if (policy.endpoints.length && !policy.entryOnly) {
+        assert(await control.isVisible(), `${item.id}: missing refresh control`);
+        // Sequential page checks share one actor and respect the existing forced-read limit.
+        await waitForForcedReadCooldown();
+        const prior = successes.length;
+        await control.click();
+        await ready(page);
+        await verifyPageReads(page, policy, successes, `${item.id}: manual refresh`, prior);
+        refreshed = reads.length - initial;
+      }
+      let reentry = policy.exception;
+      if (policy.endpoints.length) {
+        const marker = `manual-${report.checks.length}`;
+        await page.evaluate(marker => {
+          window.__manualAcceptanceLifetime = marker;
+        }, marker);
+        const previousUrl = page.url();
+        const native = await context.newCDPSession(page);
+        await native.send('Page.enable');
+        const entries = await native.send('Page.getNavigationHistory');
+        const entryId = entries.entries[entries.currentIndex].id;
+        let away =
+          item.featureId === 'help'
+            ? page.locator('a[href="/websites"]').first()
+            : page.locator('a[href^="/liekan/help"]').first();
+        if (!(await away.count())) away = page.locator('a[href*="/events"]').first();
+        const publicLayout = ['public-share', 'legacy-public-share', 'share-preview'].includes(
+          item.featureId,
+        );
+        if (publicLayout) await page.goto(base + '/liekan/help');
+        else {
+          assert(await away.count(), `${item.id}: no in-app navigation for reentry`);
+          await away.click();
+        }
+        await page.waitForURL(url => url.href !== previousUrl);
+        await ready(page);
+        if (!publicLayout)
+          assert.equal(
+            await page.evaluate(() => window.__manualAcceptanceLifetime),
+            marker,
+            `${item.id}: navigation reloaded the document`,
+          );
+        const prior = successes.length;
+        await native.send('Page.navigateToHistoryEntry', { entryId });
+        await ready(page);
+        if (!publicLayout)
+          assert.equal(
+            await page.evaluate(() => window.__manualAcceptanceLifetime),
+            marker,
+            `${item.id}: return reloaded the document`,
+          );
+        await verifyPageReads(page, policy, successes, `${item.id}: SPA reentry`, prior);
+        reentry = publicLayout
+          ? '整页导航离开后浏览器历史返回，页面数据重新读取'
+          : 'SPA 同一文档历史返回，页面数据重新读取';
+      }
+      report.checks.push({
+        id: item.id,
+        featureId: item.featureId,
+        url: item.url.split('?')[0],
+        expected: policy.endpoints,
+        exception: policy.exception,
+        initial,
+        successful,
+        idleDelta,
+        refreshed,
+        reentry,
+        ...(item.url === '/logout' ? { logoutStatuses: logouts } : {}),
+      });
+      save();
+    } finally {
+      await context.close();
+    }
+  }
+  // Respect the existing five-second forced-read limit.
+  while (Date.now() - realStarted < 600000 || Date.now() - beforeReadAt < 5100)
+    await new Promise(resolve =>
+      setTimeout(
+        resolve,
+        Math.min(
+          30000,
+          Math.max(600000 - (Date.now() - realStarted), 5100 - (Date.now() - beforeReadAt)),
+        ),
+      ),
+    );
+  for (const [index, value] of realSessions.entries()) {
+    const automatic = value.readDetails.slice(realBaselines[index]);
+    assert(automatic.every(read => livePageReadAllowed(read)), `${realCases[index]}: unexpected real idle read`);
+    if ([1, 2].includes(index)) assert(automatic.length > 0, `${realCases[index]}: live updates did not run`);
+    report.realIdle.push({
+      url: realCases[index],
+      seconds: (Date.now() - realStarted) / 1000,
+      initial: realBaselines[index],
+      idleDelta: automatic.length,
+    });
+  }
+  assert.notDeepEqual(await metric.allTextContents(), renderedBefore, 'Visible overview did not automatically render new tracker data');
+  await session.page.locator('[data-manual-refresh]').first().click();
+  await ready(session.page);
+  const renderedAfter = await metric.allTextContents();
+  assert.notDeepEqual(
+    renderedAfter,
+    renderedBefore,
+    'Overview did not render the new tracker data after manual refresh',
+  );
+  const after = await api('GET', statsPath);
+  assert.equal(
+    after.population.identity.status,
+    'complete',
+    'Browser fixture identity is incomplete',
+  );
+  assert(
+    Number(after.pageviews?.value ?? after.pageviews) >
+      Number(before.pageviews?.value ?? before.pageviews),
+    'Forced statistics did not include the valid new event',
+  );
+  report.dataChange = {
+    before: Number(before.pageviews?.value ?? before.pageviews),
+    after: Number(after.pageviews?.value ?? after.pageviews),
+    renderedBefore,
+    renderedAfter,
+  };
+  assert.deepEqual(
+    new Set(inventory.features.map(value => value.id)),
+    new Set(
+      report.checks
+        .filter(value => inventory.features.some(page => page.id === value.id))
+        .map(value => value.id),
+    ),
+  );
+  assert.equal(report.errors.length, 0, 'Browser runtime errors');
+  assert.equal(forcedInFlight.size, 0, 'Forced reads still in flight at completion');
+  report.passed = true;
+  report.finalized = true;
+  save();
+} finally {
+  await Promise.all(realSessions.map(session => session.context.close()));
+  await browser.close();
+  save();
+}

@@ -1,0 +1,35 @@
+name: '🐛 Bug Report'
+description: Create a bug report for GEOInflow.
+body:
+  - type: textarea
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Database
+      description: What database are you using?
+      options:
+        - PostgreSQL
+        - ClickHouse (compatibility endpoints)
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Relevant log output
+      description: Share relevant logs after removing secrets, receiver credentials, visitor IPs and personal data. Output is formatted as code automatically.
+      render: shell
+  - type: input
+    attributes:
+      label: Which GEOInflow version are you using?
+      description: 'Include the product version, image revision and database version, for example v1.2 / 1.2.0.'
+  - type: input
+    attributes:
+      label: How are you deploying your application?
+      description: 'For example: the standard Docker Compose deployment, source development or a custom deployment.'
+  - type: input
+    attributes:
+      label: Which browser are you using?
+      description: 'For example: Chrome, Edge, Firefox, etc'

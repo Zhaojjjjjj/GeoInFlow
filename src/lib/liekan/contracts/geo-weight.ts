@@ -1,0 +1,282 @@
+import { z } from 'zod';
+export const geoWeightQuerySchema = z.strictObject({
+  asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  timezone: z.string().min(1).max(100),
+  view: z.enum(['summary', 'detail']).default('summary'),
+});
+const legacyGeoWeightExportSchema = z.strictObject({
+  asOf: z.string(),
+  timezone: z.string(),
+  locale: z.enum(['zh-CN', 'en-US']),
+  catalogVersion: z.uuid(),
+  snapshot: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export const geoWeightExportSchema = z.union([
+  z.strictObject({ snapshotId: z.uuid(), locale: z.enum(['zh-CN', 'en-US']) }),
+  legacyGeoWeightExportSchema,
+]);
+export type GeoPurpose = 'search' | 'user' | 'training';
+export type GeoWeightState =
+  | 'missing'
+  | 'unavailable'
+  | 'warming_up'
+  | 'reference'
+  | 'aligned'
+  | 'observed_zero';
+export type GeoFactors = { paths: number; units: number; days: number; operators: number };
+export type GeoReason =
+  | 'coverage_missing'
+  | 'coverage_partial'
+  | 'backlog'
+  | 'sampling_unknown'
+  | 'host_inferred'
+  | 'classification_changed'
+  | 'source_changed'
+  | 'catalog_fallback'
+  | 'identity_incomplete'
+  | 'content_inferred'
+  | 'content_mixed'
+  | 'history_incomplete';
+export type GeoExclusion =
+  | 'self_check'
+  | 'host'
+  | 'ambiguous'
+  | 'outside_scope'
+  | 'history'
+  | 'semantics'
+  | 'verification'
+  | 'response'
+  | 'content';
+export type GeoWeightPoint = {
+  asOf: string;
+  startAt: number;
+  endAt: number;
+  state: GeoWeightState;
+  level: number | null;
+  weightedUnits: number | null;
+  observedDays: number;
+  reasons: GeoReason[];
+  categories: Array<
+    GeoFactors & {
+      purpose: GeoPurpose;
+      coefficient: number;
+      weightedUnits: number;
+    }
+  >;
+  requests: number;
+  accepted: number;
+  status200: number;
+  status304: number;
+  mimeConfirmed: number;
+  pathInferred: number;
+  exclusions: Partial<Record<GeoExclusion, number>>;
+  operators: Array<{ purpose: GeoPurpose; platformId: string; units: number; days: number }>;
+  identities: Array<{
+    id: string;
+    requests: number;
+    verified: number;
+    accepted: number;
+    exclusions: Partial<Record<GeoExclusion, number>>;
+  }>;
+  forms: Array<{ form: string; requests: number }>;
+  catalogVersions: string[];
+  classificationVersions: string[];
+  verificationVersions?: string[];
+  sources: string[];
+  comparableKey: string | null;
+};
+export type GeoWeightResponse = {
+  snapshotId?: string;
+  websiteId: string;
+  hostname: string;
+  timezone: string;
+  algorithm: string;
+  scoreScopeHash: string;
+  readCatalogVersion: string;
+  readCatalogHash: string;
+  catalogState: 'published' | 'fallback';
+  directoryCounts: { platforms: number; products: number; identities: number };
+  scope: Array<{
+    id: string;
+    purpose: GeoPurpose;
+    platformId: string;
+    name: string;
+    platform: string;
+    documentation: string | null;
+    reviewedAt: string | null;
+    productForm: string;
+  }>;
+  canManageCatalog: boolean;
+  epoch: number;
+  dataRevision: string;
+  calculatedAt: string;
+  snapshot: string;
+  view: 'summary' | 'detail';
+  current: GeoWeightPoint;
+  previous?: GeoWeightPoint;
+  observations?: Array<GeoWeightPoint & { connectPrevious: boolean }>;
+  comparison?: { delta: number | null; comparable: boolean; reasons: GeoReason[] };
+};
+
+const purpose = z.enum(['search', 'user', 'training']);
+const count = z.number().int().nonnegative();
+const exclusion = z.enum([
+  'self_check',
+  'host',
+  'ambiguous',
+  'outside_scope',
+  'history',
+  'semantics',
+  'verification',
+  'response',
+  'content',
+]);
+const reason = z.enum([
+  'coverage_missing',
+  'coverage_partial',
+  'backlog',
+  'sampling_unknown',
+  'host_inferred',
+  'classification_changed',
+  'source_changed',
+  'catalog_fallback',
+  'identity_incomplete',
+  'content_inferred',
+  'content_mixed',
+  'history_incomplete',
+]);
+const exclusions = z.partialRecord(exclusion, count);
+const geoPointSchema = z.object({
+  asOf: z.string(),
+  startAt: z.number(),
+  endAt: z.number(),
+  state: z.enum(['missing', 'unavailable', 'warming_up', 'reference', 'aligned', 'observed_zero']),
+  weightedUnits: count.nullable(),
+  level: z.number().int().min(0).max(10).nullable(),
+  observedDays: count.max(30),
+  reasons: z.array(reason),
+  categories: z.array(
+    z.object({
+      purpose,
+      paths: count,
+      units: count,
+      days: count.max(30),
+      operators: count,
+      coefficient: count,
+      weightedUnits: count,
+    }),
+  ),
+  requests: count,
+  accepted: count,
+  status200: count,
+  status304: count,
+  mimeConfirmed: count,
+  pathInferred: count,
+  exclusions,
+  operators: z.array(z.object({ purpose, platformId: z.string(), units: count, days: count })),
+  identities: z.array(
+    z.object({ id: z.string(), requests: count, verified: count, accepted: count, exclusions }),
+  ),
+  forms: z.array(z.object({ form: z.string(), requests: count })),
+  catalogVersions: z.array(z.string()),
+  classificationVersions: z.array(z.string()),
+  verificationVersions: z.array(z.string()).optional(),
+  sources: z.array(z.string()),
+  comparableKey: z.string().nullable(),
+});
+export const geoWeightResponseSchema = z.object({
+  snapshotId: z.uuid().optional(),
+  websiteId: z.uuid(),
+  hostname: z.string(),
+  timezone: z.string(),
+  algorithm: z.string(),
+  scoreScopeHash: z.string(),
+  readCatalogVersion: z.uuid(),
+  readCatalogHash: z.string(),
+  catalogState: z.enum(['published', 'fallback']),
+  directoryCounts: z.object({ platforms: count, products: count, identities: count }),
+  scope: z.array(
+    z.object({
+      id: z.string(),
+      purpose,
+      platformId: z.string(),
+      name: z.string(),
+      platform: z.string(),
+      documentation: z.string().nullable(),
+      reviewedAt: z.string().nullable(),
+      productForm: z.string(),
+    }),
+  ),
+  canManageCatalog: z.boolean(),
+  epoch: count,
+  dataRevision: z.string(),
+  calculatedAt: z.string(),
+  snapshot: z.string(),
+  view: z.enum(['summary', 'detail']),
+  current: geoPointSchema,
+  previous: geoPointSchema.optional(),
+  observations: z.array(geoPointSchema.extend({ connectPrevious: z.boolean() })).optional(),
+  comparison: z
+    .object({
+      delta: z.number().int().min(-10).max(10).nullable(),
+      comparable: z.boolean(),
+      reasons: z.array(reason),
+    })
+    .optional(),
+});
+
+export const GEO_SNAPSHOT_FORMAT = 'geo-snapshot-v1';
+export const geoWeightSnapshotQuerySchema = z
+  .strictObject({
+    mode: z.enum(['current', 'historical']).default('current'),
+    asOf: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    timezone: z.string().min(1).max(100),
+    view: z.enum(['summary', 'detail']).default('summary'),
+    snapshotId: z.uuid().optional(),
+    taskId: z.uuid().optional(),
+  })
+  .refine(p => p.mode !== 'historical' || !!p.asOf, { message: 'Historical date required' })
+  .refine(p => !(p.taskId && p.snapshotId), { message: 'Use one pinned identity' });
+export const geoWeightRecalculateSchema = z
+  .strictObject({
+    mode: z.enum(['current', 'historical']).default('current'),
+    asOf: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    timezone: z.string().min(1).max(100),
+    requestId: z.uuid(),
+  })
+  .refine(p => p.mode !== 'historical' || !!p.asOf, { message: 'Historical date required' });
+export const geoWeightSnapshotResponseSchema = z.object({
+  format: z.literal(GEO_SNAPSHOT_FORMAT),
+  taskId: z.uuid().nullable(),
+  taskStatus: z.enum(['queued', 'running', 'ready', 'failed', 'capacity_blocked']),
+  result: geoWeightResponseSchema.nullable(),
+  snapshotId: z.uuid().nullable(),
+  requestedAsOf: z.string(),
+  servedAsOf: z.string().nullable(),
+  stale: z.boolean(),
+  nextRetryAt: z.string().nullable(),
+  errorCode: z.string().nullable(),
+  canRecalculate: z.boolean(),
+  strongVersion: z.string(),
+});
+export type GeoWeightSnapshotResponse = {
+  format: typeof GEO_SNAPSHOT_FORMAT;
+  taskId: string | null;
+  taskStatus: 'queued' | 'running' | 'ready' | 'failed' | 'capacity_blocked';
+  result: GeoWeightResponse | null;
+  snapshotId: string | null;
+  requestedAsOf: string;
+  servedAsOf: string | null;
+  stale: boolean;
+  nextRetryAt: string | null;
+  errorCode: string | null;
+  canRecalculate: boolean;
+  strongVersion: string;
+};
+export type GeoWeightSnapshotQuery = z.infer<typeof geoWeightSnapshotQuerySchema>;

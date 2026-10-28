@@ -1,0 +1,89 @@
+import { analysisAcceptedSchema } from '@/lib/liekan/contracts/analysis-acceleration';
+import { z } from 'zod';
+import { funnelQuerySchema } from '@/lib/analytics-schema';
+import { defineOperation } from '@/openapi/operation';
+import { badRequestResponse, notFoundResponse, unauthorizedResponse } from '@/openapi/schemas';
+
+export const operations = [
+  defineOperation({
+    method: 'get',
+    path: '/api/websites/{websiteId}/funnels/stats',
+    audience: 'public',
+    auth: 'bearer-or-share',
+    operation: {
+      operationId: 'getWebsiteFunnelStats',
+      summary: 'Get website funnel stats',
+      tags: ['Websites'],
+      requestParams: { path: z.object({ websiteId: z.uuid() }), query: funnelQuerySchema },
+      responses: {
+        '202': {description:'Opt-in Prefer: respond-async accepted a durable private task',content:{'application/json':{schema:analysisAcceptedSchema}}},
+        '200': {
+          description: 'The operation completed successfully.',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    visitors: {
+                      type: ['number', 'null'],
+                    },
+                    previous: {
+                      type: ['number', 'null'],
+                    },
+                    dropped: {
+                      type: ['number', 'null'],
+                    },
+                    dropoff: {
+                      type: ['number', 'null'],
+                    },
+                    remaining: {
+                      type: ['number', 'null'],
+                    },
+                    type: {
+                      type: 'string',
+                    },
+                    value: {
+                      type: 'string',
+                    },
+                    filters: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          property: {
+                            type: 'string',
+                          },
+                          operator: {
+                            type: 'string',
+                          },
+                          value: {
+                            type: 'string',
+                          },
+                        },
+                        required: ['property', 'operator', 'value'],
+                      },
+                    },
+                  },
+                  required: [
+                    'visitors',
+                    'previous',
+                    'dropped',
+                    'dropoff',
+                    'remaining',
+                    'type',
+                    'value',
+                  ],
+                },
+              },
+            },
+          },
+        },
+        '400': badRequestResponse,
+        '401': unauthorizedResponse,
+        '404': notFoundResponse,
+      },
+    },
+  }),
+] as const;
