@@ -13,6 +13,11 @@ name: Bootstrap database (one-time)
 
 on:
   workflow_dispatch:
+    inputs:
+      skip_demo:
+        description: 'Skip the official demo dataset import (~1.38M sample rows; the app works without it)'
+        type: boolean
+        default: false
 
 concurrency:
   group: bootstrap-database
@@ -46,5 +51,6 @@ jobs:
           # The demo seed derives demo-data hashes from APP_SECRET; it must
           # be the same value as the production APP_SECRET on Vercel.
           APP_SECRET: ${{ secrets.APP_SECRET }}
+          LIEKAN_SKIP_DEMO: ${{ inputs.skip_demo && '1' || '' }}
           NODE_OPTIONS: --dns-result-order=ipv4first
         run: pnpm vercel:bootstrap

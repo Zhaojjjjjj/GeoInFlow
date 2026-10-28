@@ -31,6 +31,10 @@ const nodeOptions = [process.env.NODE_OPTIONS, '--dns-result-order=ipv4first']
   .join(' ');
 const env = { ...process.env, DATABASE_URL: directUrl, NODE_OPTIONS: nodeOptions };
 
+// The official demo dataset is optional sample content (~1.38M rows).
+// Set LIEKAN_SKIP_DEMO=1 to skip importing it (the app works without it).
+const skipDemo = process.env.LIEKAN_SKIP_DEMO === '1';
+
 const steps = [
   // The standalone scripts import a bundled client at generated/prisma/
   // client.js, which a fresh checkout (e.g. CI) does not have yet: it is
@@ -39,9 +43,13 @@ const steps = [
   ['node', ['scripts/build-prisma-client.js'], 'Bundle Prisma client for scripts'],
   ['node', ['scripts/check-db.js'], 'Upstream migrations (prisma migrate deploy)'],
   ['node', ['scripts/liekan-migrate.mjs'], 'Liekan SQL migrations'],
-  ['node', ['scripts/liekan-seed-demo.mjs', '--automatic'], 'Official demo import'],
+  ...(skipDemo
+    ? []
+    : [['node', ['scripts/liekan-seed-demo.mjs', '--automatic'], 'Official demo import']]),
   ['node', ['scripts/liekan-queue-bootstrap.mjs'], 'Queue bootstrap (pg-boss)'],
 ];
+
+if (skipDemo) console.log('LIEKAN_SKIP_DEMO=1: skipping the official demo import.');
 
 for (const [cmd, args, label] of steps) {
   console.log(`\n==> ${label}`);
