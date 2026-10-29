@@ -1454,6 +1454,24 @@
 :global([data-liekan-features] .auth-form .preview-tools) {
   margin-top: 24px;
 }
+:global([data-liekan-features] .auth-page) {
+  --brand: #7c3aed;
+  --brand2: #7c3aed;
+  --selected: #f4efff;
+  background: #fff;
+}
+:global([data-liekan-features] .auth-page .auth-info) {
+  background: #fff;
+}
+:global([data-liekan-features] .auth-page .badge.blue) {
+  background: #7c3aed14;
+  color: #7c3aed;
+}
+:global([data-liekan-features] .auth-page .notice.blue) {
+  background: #7c3aed0d;
+  border-color: #7c3aed2e;
+  color: #5b21b6;
+}
 :global([data-liekan-features] .auth-bottom) {
   display: flex;
   justify-content: space-between;
