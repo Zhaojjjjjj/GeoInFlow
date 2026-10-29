@@ -96,7 +96,7 @@ export function LoginTwoFactorPage() {
             width: 32,
             height: 32,
             borderRadius: 10,
-            background: '#0F62FE',
+            background: '#7C3AED',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

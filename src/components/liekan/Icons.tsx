@@ -1,21 +1,20 @@
 import type { CSSProperties } from 'react';
-export function BrandIcon({ style }: { style?: CSSProperties }) {
+export function BrandIcon({ style, size = 18 }: { style?: CSSProperties; size?: number }) {
   return (
     <span style={style}>
       <svg
-        width="18"
-        height="18"
-        className="w-[18px] h-[18px]"
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
         viewBox="0 0 24 24"
         fill="none"
         stroke="white"
-        strokeWidth="2.2"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M2.5 12S6.2 5.8 12 5.8 21.5 12 21.5 12 17.8 18.2 12 18.2 2.5 12 2.5 12z" />
-        <circle cx="12" cy="12" r="2.8" fill="white" stroke="none" />
-        <path d="M17.5 3.5l1.8 1.8M19.3 5.3L21 3.6" strokeWidth="1.8" />
+        <path d="M2 12c2.9-4.5 6.3-6.8 10-6.8S19.1 7.5 22 12c-2.9 4.5-6.3 6.8-10 6.8S4.9 16.5 2 12Z" />
+        <circle cx="12" cy="12" r="3" fill="white" stroke="none" />
       </svg>
     </span>
   );

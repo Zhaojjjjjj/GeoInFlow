@@ -23,10 +23,9 @@ export function LoginPageWrapper({ children }: PropsWithChildren) {
   return (
     <Column
       alignItems="center"
-      justifyContent="flex-start"
+      justifyContent="center"
       height="100vh"
-      backgroundColor="surface-raised"
-      style={{ paddingTop: '15vh' }}
+      style={{ background: '#FFFFFF', padding: '32px 0' }}
     >
       {children}
     </Column>

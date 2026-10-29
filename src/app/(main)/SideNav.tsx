@@ -89,7 +89,7 @@ export function SideNav(props: any) {
                     width: 28,
                     height: 28,
                     borderRadius: 8,
-                    background: '#0F62FE',
+                    background: '#7C3AED',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
